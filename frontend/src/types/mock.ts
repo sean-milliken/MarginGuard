@@ -74,7 +74,7 @@ export interface FinancialImpact {
   revenueAtRisk: number;
   affectedUnits: number;
   timeHorizon: number; // days
-  confidence: number; // 0-1
+  confidence?: number; // Optional model confidence; absent for deterministic scenarios.
   cashImpactRange: {
     min: number;
     max: number;

@@ -156,7 +156,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             .map((source) => source.dependencyBps / 100),
         ),
       ),
-      relationship: "primary",
+      relationship: raw.components.some((c) =>
+        c.sources.some(
+          (source) =>
+            source.supplierId === s.id && source.dependencyBps >= 5000,
+        ),
+      )
+        ? "primary"
+        : "secondary",
       components: raw.components
         .filter((c) => c.sources.some((source) => source.supplierId === s.id))
         .map((c) => c.id),
@@ -197,7 +204,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       revenueAtRisk: report.revenueAtRiskCents / 100,
       affectedUnits: report.affectedUnits,
       timeHorizon: event.disruptionDays,
-      confidence: 1,
       cashImpactRange: {
         min: report.cashImpactCents / 100,
         max: report.cashImpactCents / 100,

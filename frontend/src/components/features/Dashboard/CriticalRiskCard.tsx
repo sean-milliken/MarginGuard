@@ -201,8 +201,7 @@ export const CriticalRiskCard: React.FC<CriticalRiskCardProps> = ({
                       d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
                     />
                   </svg>
-                  {Math.round(scenario.financialImpact.confidence * 100)}%
-                  confidence
+                  Calculated from inputs
                 </span>
                 <span className="text-border">|</span>
                 <span>
