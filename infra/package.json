@@ -17,9 +17,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
+    "@types/aws-lambda": "^8.10.145",
     "@types/jest": "^30",
     "@types/node": "^24.0.0",
     "aws-cdk": "^2.1109.0",
+    "esbuild": "^0.25.0",
     "eslint": "^10.0.0",
     "jest": "^30",
     "prettier": "^3.0.0",
@@ -29,6 +31,8 @@
     "typescript-eslint": "^8.0.0"
   },
   "dependencies": {
+    "@aws-cdk/aws-apigatewayv2-alpha": "^2.241.0-alpha.0",
+    "@aws-cdk/aws-apigatewayv2-integrations-alpha": "^2.241.0-alpha.0",
     "aws-cdk-lib": "^2.241.0",
     "constructs": "^10.5.0"
   }

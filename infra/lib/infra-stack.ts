@@ -1,99 +1,193 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as amplify from 'aws-cdk-lib/aws-amplify';
+import * as apigwv2 from '@aws-cdk/aws-apigatewayv2-alpha';
+import * as apigwv2Integrations from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
 import * as path from 'path';
-import {Construct} from 'constructs';
+import { Construct } from 'constructs';
 
 export class InfraStack extends cdk.Stack {
-    constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-        super(scope, id, props);
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
 
-        const helloWorldFunction = new lambda.Function(this, 'HelloWorldFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
-            architecture: lambda.Architecture.ARM_64,
-            handler: 'handler.handler',
-            code: lambda.Code.fromAsset(
-                path.join(__dirname, '../../backend/lambda/hello_world'),
-                {
-                    bundling: {
-                        image: lambda.Runtime.PYTHON_3_13.bundlingImage,
-                        platform: 'linux/arm64',
-                        command: [
-                            'bash', '-c',
-                            'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output',
-                        ],
-                    },
-                }
-            ),
-            functionName: 'hello-world',
-        });
+    // ── DynamoDB Tables ────────────────────────────────────────────────────
 
-        const api = new apigateway.RestApi(this, 'TemplateAPI', {
-            restApiName: 'Template API',
-            description: 'API Gateway',
-        });
+    const companiesTable = new dynamodb.Table(this, 'CompaniesTable', {
+      tableName: 'MarginGuardCompanies',
+      partitionKey: { name: 'companyId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
-        const helloResource = api.root.addResource('hello');
-        helloResource.addMethod('GET', new apigateway.LambdaIntegration(helloWorldFunction));
+    const eventsTable = new dynamodb.Table(this, 'EventsTable', {
+      tableName: 'MarginGuardEvents',
+      partitionKey: { name: 'eventId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    eventsTable.addGlobalSecondaryIndex({
+      indexName: 'companyId-index',
+      partitionKey: { name: 'companyId', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
-        new cdk.CfnOutput(this, 'ApiUrl', {
-            value: api.url,
-            description: 'API Gateway URL',
-        });
+    const analysesTable = new dynamodb.Table(this, 'AnalysesTable', {
+      tableName: 'MarginGuardAnalyses',
+      partitionKey: { name: 'analysisId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    analysesTable.addGlobalSecondaryIndex({
+      indexName: 'companyId-index',
+      partitionKey: { name: 'companyId', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
-        // Cognito User Pool for authentication
-        const userPool = new cognito.UserPool(this, 'UserPool', {
-            userPoolName: 'template-user-pool',
-            selfSignUpEnabled: true,
-            signInAliases: {
-                email: true,
-            },
-            autoVerify: {
-                email: true,
-            },
-            passwordPolicy: {
-                minLength: 8,
-                requireUppercase: true,
-                requireLowercase: true,
-                requireDigits: true,
-                requireSymbols: false,
-            },
-            mfa: cognito.Mfa.OFF,
-            accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-            removalPolicy: cdk.RemovalPolicy.DESTROY,
-        });
+    // ── S3 Bucket ──────────────────────────────────────────────────────────
 
-        // User Pool Client
-        const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
-            userPool,
-            userPoolClientName: 'template-app-client',
-            authFlows: {
-                userSrp: true,
-                userPassword: true,
-            },
-            oAuth: {
-                flows: {
-                    authorizationCodeGrant: true,
-                },
-                scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
-                callbackUrls: ['http://localhost:5173/', 'http://localhost:3000/'],
-                logoutUrls: ['http://localhost:5173/', 'http://localhost:3000/'],
-            },
-            preventUserExistenceErrors: true,
-        });
+    const sourcesBucket = new s3.Bucket(this, 'SourcesBucket', {
+      bucketName: `marginguard-sources-${this.account}-${this.region}`,
+      versioned: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: ['*'],
+          allowedHeaders: ['*'],
+          maxAge: 3000,
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
 
-        // Amplify App (ready for Git connection)
-        const amplifyApp = new amplify.CfnApp(this, 'AmplifyApp', {
-            name: 'template-frontend',
-            environmentVariables: [
-                {name: 'VITE_USER_POOL_ID', value: userPool.userPoolId},
-                {name: 'VITE_USER_POOL_CLIENT_ID', value: userPoolClient.userPoolClientId},
-                {name: 'VITE_API_URL', value: api.url},
-                {name: 'VITE_AWS_REGION', value: this.region},
-            ],
-            buildSpec: `version: 1
+    // ── Shared Lambda config ───────────────────────────────────────────────
+
+    const commonEnv: Record<string, string> = {
+      COMPANIES_TABLE: companiesTable.tableName,
+      EVENTS_TABLE: eventsTable.tableName,
+      ANALYSES_TABLE: analysesTable.tableName,
+      SOURCES_BUCKET: sourcesBucket.bucketName,
+    };
+
+    const commonBundling: lambdaNode.BundlingOptions = {
+      externalModules: ['@aws-sdk/*'],
+      minify: true,
+      sourceMap: false,
+      target: 'node22',
+    };
+
+    const lambdaDir = path.join(__dirname, '../../backend/lambda');
+
+    const fn = (id: string, entry: string): lambdaNode.NodejsFunction =>
+      new lambdaNode.NodejsFunction(this, id, {
+        runtime: lambda.Runtime.NODEJS_22_X,
+        architecture: lambda.Architecture.ARM_64,
+        memorySize: 256,
+        timeout: cdk.Duration.seconds(30),
+        environment: commonEnv,
+        bundling: commonBundling,
+        entry: path.join(lambdaDir, entry),
+        handler: 'handler',
+      });
+
+    // ── Lambda Functions ───────────────────────────────────────────────────
+
+    const healthFn    = fn('HealthFunction',    'health.ts');
+    const companiesFn = fn('CompaniesFunction', 'companies.ts');
+    const eventsFn    = fn('EventsFunction',    'events.ts');
+    const sourcesFn   = fn('SourcesFunction',   'sources.ts');
+    const analysesFn  = fn('AnalysesFunction',  'analyses.ts');
+    const scenariosFn = fn('ScenariosFunction', 'scenarios.ts');
+
+    // ── IAM Grants ─────────────────────────────────────────────────────────
+
+    companiesTable.grantReadData(companiesFn);
+    eventsTable.grantReadData(eventsFn);
+    analysesTable.grantWriteData(analysesFn);
+    sourcesBucket.grantWrite(sourcesFn);
+
+    // ── HTTP API with CORS ─────────────────────────────────────────────────
+
+    const httpApi = new apigwv2.HttpApi(this, 'MarginGuardApi', {
+      apiName: 'MarginGuard API',
+      corsPreflight: {
+        allowHeaders: ['Content-Type', 'Authorization', 'X-Amz-Date', 'X-Api-Key'],
+        allowMethods: [apigwv2.CorsHttpMethod.ANY],
+        allowOrigins: ['*'],
+        maxAge: cdk.Duration.days(10),
+      },
+    });
+
+    const addRoute = (
+      integrationId: string,
+      method: apigwv2.HttpMethod,
+      routePath: string,
+      targetFn: lambda.IFunction,
+    ) => {
+      httpApi.addRoutes({
+        path: routePath,
+        methods: [method],
+        integration: new apigwv2Integrations.HttpLambdaIntegration(integrationId, targetFn),
+      });
+    };
+
+    addRoute('HealthInt',    apigwv2.HttpMethod.GET,  '/health',                healthFn);
+    addRoute('CompaniesInt', apigwv2.HttpMethod.GET,  '/companies/{companyId}', companiesFn);
+    addRoute('EventsListInt',apigwv2.HttpMethod.GET,  '/events',                eventsFn);
+    addRoute('EventsGetInt', apigwv2.HttpMethod.GET,  '/events/{id}',           eventsFn);
+    addRoute('SourcesInt',   apigwv2.HttpMethod.POST, '/sources',               sourcesFn);
+    addRoute('AnalysesInt',  apigwv2.HttpMethod.POST, '/analyses',              analysesFn);
+    addRoute('ScenariosInt', apigwv2.HttpMethod.POST, '/scenarios/{id}/run',    scenariosFn);
+
+    // ── Cognito (preserved) ────────────────────────────────────────────────
+
+    const userPool = new cognito.UserPool(this, 'UserPool', {
+      userPoolName: 'template-user-pool',
+      selfSignUpEnabled: true,
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      passwordPolicy: {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireDigits: true,
+        requireSymbols: false,
+      },
+      mfa: cognito.Mfa.OFF,
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
+      userPool,
+      userPoolClientName: 'template-app-client',
+      authFlows: { userSrp: true, userPassword: true },
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
+        callbackUrls: ['http://localhost:5173/', 'http://localhost:3000/'],
+        logoutUrls: ['http://localhost:5173/', 'http://localhost:3000/'],
+      },
+      preventUserExistenceErrors: true,
+    });
+
+    // ── Amplify (VITE_API_URL updated to HTTP API) ─────────────────────────
+
+    const amplifyApp = new amplify.CfnApp(this, 'AmplifyApp', {
+      name: 'template-frontend',
+      environmentVariables: [
+        { name: 'VITE_USER_POOL_ID',        value: userPool.userPoolId },
+        { name: 'VITE_USER_POOL_CLIENT_ID', value: userPoolClient.userPoolClientId },
+        { name: 'VITE_API_URL',             value: httpApi.apiEndpoint },
+        { name: 'VITE_AWS_REGION',          value: this.region },
+      ],
+      buildSpec: `version: 1
 frontend:
   phases:
     preBuild:
@@ -110,35 +204,40 @@ frontend:
   cache:
     paths:
       - frontend/node_modules/**/*`,
-            customRules: [
-                {
-                    source: '</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>',
-                    target: '/index.html',
-                    status: '200',
-                },
-            ],
-        });
+      customRules: [
+        {
+          source: '</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>',
+          target: '/index.html',
+          status: '200',
+        },
+      ],
+    });
 
-        // Cognito Outputs
-        new cdk.CfnOutput(this, 'UserPoolId', {
-            value: userPool.userPoolId,
-            description: 'Cognito User Pool ID',
-        });
+    // ── Outputs ────────────────────────────────────────────────────────────
 
-        new cdk.CfnOutput(this, 'UserPoolClientId', {
-            value: userPoolClient.userPoolClientId,
-            description: 'Cognito User Pool Client ID',
-        });
-
-        new cdk.CfnOutput(this, 'CognitoRegion', {
-            value: this.region,
-            description: 'AWS Region for Cognito',
-        });
-
-        // Amplify Output
-        new cdk.CfnOutput(this, 'AmplifyAppId', {
-            value: amplifyApp.attrAppId,
-            description: 'Amplify App ID',
-        });
-    }
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: httpApi.apiEndpoint,
+      description: 'HTTP API Gateway URL',
+    });
+    new cdk.CfnOutput(this, 'SourcesBucketName', {
+      value: sourcesBucket.bucketName,
+      description: 'S3 bucket for source documents',
+    });
+    new cdk.CfnOutput(this, 'UserPoolId', {
+      value: userPool.userPoolId,
+      description: 'Cognito User Pool ID',
+    });
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: userPoolClient.userPoolClientId,
+      description: 'Cognito User Pool Client ID',
+    });
+    new cdk.CfnOutput(this, 'CognitoRegion', {
+      value: this.region,
+      description: 'AWS Region for Cognito',
+    });
+    new cdk.CfnOutput(this, 'AmplifyAppId', {
+      value: amplifyApp.attrAppId,
+      description: 'Amplify App ID',
+    });
+  }
 }
