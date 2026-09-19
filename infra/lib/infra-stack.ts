@@ -82,7 +82,8 @@ export class InfraStack extends cdk.Stack {
       target: 'node22',
     };
 
-    const lambdaDir = path.join(__dirname, '../../backend/lambda');
+    const repoRoot = path.join(__dirname, '../../');
+    const lambdaDir = path.join(repoRoot, 'backend/lambda');
 
     const fn = (id: string, entry: string): lambdaNode.NodejsFunction =>
       new lambdaNode.NodejsFunction(this, id, {
@@ -94,6 +95,7 @@ export class InfraStack extends cdk.Stack {
         bundling: commonBundling,
         entry: path.join(lambdaDir, entry),
         handler: 'handler',
+        projectRoot: repoRoot,
       });
 
     // ── Lambda Functions ───────────────────────────────────────────────────
