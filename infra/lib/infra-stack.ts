@@ -5,8 +5,8 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as amplify from 'aws-cdk-lib/aws-amplify';
-import * as apigwv2 from '@aws-cdk/aws-apigatewayv2-alpha';
-import * as apigwv2Integrations from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigwv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
