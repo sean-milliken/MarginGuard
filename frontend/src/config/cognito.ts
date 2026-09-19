@@ -1,8 +1,11 @@
 import { CognitoUserPool } from 'amazon-cognito-identity-js';
 
+// In mock mode, use dummy values to prevent errors
+const isMockMode = import.meta.env.VITE_MOCK_MODE === 'true';
+
 const poolData = {
-  UserPoolId: import.meta.env.VITE_USER_POOL_ID || '',
-  ClientId: import.meta.env.VITE_USER_POOL_CLIENT_ID || '',
+  UserPoolId: isMockMode ? 'us-east-1_MOCK12345' : (import.meta.env.VITE_USER_POOL_ID || ''),
+  ClientId: isMockMode ? 'mockclientid123456789' : (import.meta.env.VITE_USER_POOL_CLIENT_ID || ''),
 };
 
 export const userPool = new CognitoUserPool(poolData);
