@@ -118,13 +118,14 @@ check_prerequisites() {
 # Install dependencies
 install_dependencies() {
     print_info "Installing npm dependencies..."
-    npm install
+    (cd .. && npm ci)
     print_success "Dependencies installed"
 }
 
 # Build TypeScript
 build_package() {
     print_info "Building TypeScript..."
+    npm run build -w @marginguard/app
     npm run build
     print_success "TypeScript compiled successfully"
 }

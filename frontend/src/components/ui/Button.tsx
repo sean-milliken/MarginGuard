@@ -1,28 +1,30 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import type { ReactNode } from "react";
+import { motion, type HTMLMotionProps } from "framer-motion";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends HTMLMotionProps<"button"> {
   children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: "primary" | "secondary" | "outline";
   isLoading?: boolean;
 }
 
 export function Button({
   children,
-  variant = 'primary',
+  variant = "primary",
   isLoading = false,
   disabled,
-  className = '',
+  className = "",
   ...props
 }: ButtonProps) {
   const baseStyles =
-    'w-full px-4 py-3 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    "w-full px-4 py-3 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variants = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-    secondary: 'bg-bg-tertiary text-text-primary hover:bg-bg-hover focus:ring-primary-500',
+    primary:
+      "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500",
+    secondary:
+      "bg-bg-tertiary text-text-primary hover:bg-bg-hover focus:ring-primary-500",
     outline:
-      'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 focus:ring-primary-500',
+      "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 focus:ring-primary-500",
   };
 
   return (

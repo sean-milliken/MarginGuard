@@ -1,3 +1,5 @@
+> **Integrated application:** See [INTEGRATION.md](INTEGRATION.md) for the current local launch, API contract, demo walkthrough, and AWS integration. Run `npm ci` then `npm run dev` from the repository root.
+
 # README Template for CIC Projects
 
 | Index                         | Description                                         |
