@@ -41,6 +41,29 @@ Only clicking **Analyze source** sends the submitted article and qualitative bus
 
 Model evidence must be an exact substring of the submitted text, and option rankings must use known, unique options. Invalid or unavailable model output is reported as an error, never replaced with fabricated intelligence. Live NVIDIA inference and measured eval scores require a working key; the automated integration suite injects a controlled analyzer instead of making paid API calls.
 
+## FRED economic data integration
+
+MarginGuard integrates real-time commodity price data from the Federal Reserve Economic Data (FRED) API as the first real external data source. FRED commodity signals are connected to Steel City Beverages' supply chain to demonstrate deterministic financial impact calculations.
+
+**Setup:**
+
+1. Obtain a free FRED API key: https://fred.stlouisfed.org/docs/api/api_key.html
+2. Copy `.env.example` to `.env` in the repository root and set `FRED_API_KEY`
+3. Restart the Node API
+
+The dashboard will display real-time economic signals when FRED is configured. All financial impact calculations are deterministic and never involve LLM inference.
+
+**FRED series monitored:**
+
+- **PCU331315331315**: Aluminum sheet, plate & foil PPI → affects aluminum can component
+- **PPIACO**: Producer Price Index: All Commodities → general commodity pressure
+- **PCU322121322121**: Corrugated & solid fiber boxes PPI → affects corrugated case component  
+- **WPU01170301**: Industrial electric power PPI → affects all production (indirect)
+
+Each signal shows month-over-month percentage change, severity level (low/medium/high/critical), and deterministic financial impact on Steel City Beverages' components, suppliers, and products. Observations are cached in DynamoDB with 7-day TTL. Source transparency is preserved - every signal includes the original FRED series link.
+
+FRED integration is optional. Without a configured API key, the application continues to function with all synthetic scenario analysis features intact.
+
 ## API contract
 
 `shared/src/application.ts` defines the frontend/backend report contract. `backend/app/src/service.ts` validates JSON input using Zod and invokes the pure financial engine. The same request router is used by the local server and Lambda.
@@ -57,6 +80,10 @@ Model evidence must be an exact substring of the submitted text, and option rank
 | GET | `/analyses/{id}` | Saved analysis or 404 |
 | POST | `/scenarios/{id}/run` | Calculate a named scenario |
 | POST | `/intelligence` | Qualitative Nemotron outcome |
+| GET | `/fred/series` | List configured FRED series with latest observations |
+| GET | `/fred/series/{id}` | Get specific FRED series with historical observations |
+| GET | `/fred/signals` | Current economic signals with severity and percentage changes |
+| GET | `/fred/impact/{signalId}` | Deterministic financial impact on Steel City Beverages |
 
 Example analysis body: `{"scenarioId":"logistics-15-days"}`. `/analyses` also accepts an explicit `event`, optional complete `company`, and optional demo `companyId`. Unknown fields and invalid references are rejected. Intelligence body: `{"articleText":"...at least 20 characters...","analysis":{"scenarioId":"logistics-15-days"}}`.
 
@@ -77,6 +104,22 @@ npm exec -w infra -- cdk synth --no-lookups
 With the intended AWS account and deployment permissions configured, use the existing deployment workflow. `infra/deploy-infra.sh` now installs from the root lockfile and builds the Node bundle before deployment. The stack's Amplify build likewise installs root workspaces. `frontend/setup-dev.sh` obtains Cognito and API values from the stack for a normal frontend deployment build; mock mode must remain false.
 
 To enable Nemotron in AWS, create/manage a Secrets Manager secret outside the repository containing either the key string or JSON with `NVIDIA_API_KEY`, and pass its **complete ARN** as CDK context `nemotronSecretArn`. The Lambda gets read access to that secret only and loads it server-side. No key is embedded in the frontend, CDK template, or source. If the secret is missing/unreadable, financial analysis still works and the model is shown as unavailable.
+
+To enable FRED in AWS, create/manage a Secrets Manager secret containing JSON with `FRED_API_KEY`:
+
+```sh
+aws secretsmanager create-secret \
+  --name marginguard-fred-api-key \
+  --secret-string '{"FRED_API_KEY":"your-key-here"}'
+```
+
+Deploy with CDK context `fredSecretArn`:
+
+```sh
+cdk deploy --context fredSecretArn=arn:aws:secretsmanager:REGION:ACCOUNT:secret:marginguard-fred-api-key
+```
+
+The Lambda gets read access to the secret and loads it server-side. FRED observations are cached in the `MarginGuardEconomicData` DynamoDB table with 7-day TTL. If the secret is missing or FRED is unavailable, the application continues to work with all synthetic scenarios intact.
 
 Deploying changes is a separate operation. Local builds, template assertions, and browser tests do not constitute a live AWS deployment or a successful live NVIDIA call.
 

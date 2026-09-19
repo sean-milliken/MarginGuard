@@ -1,6 +1,11 @@
 import { createApi } from "./api";
 import { dynamoStore } from "./store";
+import { createFredClient } from "./fred/client";
+import { dynamoCache, memoryCache } from "./fred/cache";
+import { createFredService } from "./fred/service";
+
 const api = (async () => {
+  // Load NVIDIA secret for Nemotron AI
   if (process.env.NVIDIA_SECRET_ARN) {
     try {
       const { SecretsManagerClient, GetSecretValueCommand } =
@@ -19,7 +24,18 @@ const api = (async () => {
       );
     }
   }
-  return createApi({ store: await dynamoStore(process.env.ANALYSES_TABLE!) });
+
+  // Initialize FRED client and service
+  const fredClient = await createFredClient();
+  const fredCache = process.env.ECONOMIC_DATA_TABLE
+    ? await dynamoCache(process.env.ECONOMIC_DATA_TABLE)
+    : memoryCache();
+  const fredService = createFredService(fredClient, fredCache);
+
+  return createApi({
+    store: await dynamoStore(process.env.ANALYSES_TABLE!),
+    fredService,
+  });
 })();
 export async function handler(event: {
   requestContext: { http: { method: string } };
