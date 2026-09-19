@@ -1,19 +1,90 @@
 @import "tailwindcss";
 
 @theme {
-  --color-offwhite: #FAFAFA;
-  --color-primary-50: #EFF6FF;
-  --color-primary-100: #DBEAFE;
-  --color-primary-200: #BFDBFE;
-  --color-primary-300: #93C5FD;
-  --color-primary-400: #60A5FA;
-  --color-primary-500: #3B82F6;
-  --color-primary-600: #2563EB;
-  --color-primary-700: #1D4ED8;
-  --color-primary-800: #1E40AF;
-  --color-primary-900: #1E3A8A;
+  /* Base Colors (Backgrounds) */
+  --color-bg-primary: #0A0E14;
+  --color-bg-secondary: #12171F;
+  --color-bg-tertiary: #1A2332;
+  --color-bg-hover: #222A3A;
+
+  /* Text Colors */
+  --color-text-primary: #E8EBF0;
+  --color-text-secondary: #9BA3B4;
+  --color-text-tertiary: #6B7280;
+  --color-text-disabled: #4B5563;
+
+  /* Border Colors */
+  --color-border: #2A3444;
+  --color-border-focus: #3B4A63;
+
+  /* Brand/Primary (Blue) */
+  --color-primary-50: #E0F2FE;
+  --color-primary-100: #BAE6FD;
+  --color-primary-200: #7DD3FC;
+  --color-primary-300: #38BDF8;
+  --color-primary-400: #0EA5E9;
+  --color-primary-500: #0284C7;
+  --color-primary-600: #0369A1;
+  --color-primary-700: #075985;
+  --color-primary-800: #0C4A6E;
+  --color-primary-900: #0A3A56;
+
+  /* Semantic Colors - Success (Green) */
+  --color-success-light: #34D399;
+  --color-success: #10B981;
+  --color-success-dark: #059669;
+  --color-success-bg: rgba(16, 185, 129, 0.1);
+
+  /* Semantic Colors - Warning (Amber) */
+  --color-warning-light: #FBBF24;
+  --color-warning: #F59E0B;
+  --color-warning-dark: #D97706;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+
+  /* Semantic Colors - Error (Red) */
+  --color-error-light: #F87171;
+  --color-error: #EF4444;
+  --color-error-dark: #DC2626;
+  --color-error-bg: rgba(239, 68, 68, 0.1);
+
+  /* Semantic Colors - Info (Blue) */
+  --color-info-light: #60A5FA;
+  --color-info: #3B82F6;
+  --color-info-dark: #2563EB;
+  --color-info-bg: rgba(59, 130, 246, 0.1);
+
+  /* 3D Material Colors */
+  --color-3d-metal: #71849C;
+  --color-3d-glass: rgba(255, 255, 255, 0.05);
+  --color-3d-glow-primary: #0EA5E9;
+  --color-3d-glow-success: #10B981;
+  --color-3d-glow-error: #EF4444;
+  --color-3d-shadow: rgba(0, 0, 0, 0.5);
 }
 
 body {
-  @apply bg-offwhite min-h-screen;
+  @apply bg-bg-primary text-text-primary min-h-screen antialiased;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 3D Transform Optimization */
+.card-3d {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

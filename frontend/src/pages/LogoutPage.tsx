@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LogoutPage() {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export default function LogoutPage() {
   }, [logout]);
 
   return (
-    <div className="min-h-screen bg-offwhite flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <Card className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4">
