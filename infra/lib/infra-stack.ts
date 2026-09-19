@@ -48,6 +48,21 @@ export class InfraStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    const economicDataTable = new dynamodb.Table(this, "EconomicDataTable", {
+      tableName: "MarginGuardEconomicData",
+      partitionKey: { name: "seriesId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "date", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: "expiresAt",
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    economicDataTable.addGlobalSecondaryIndex({
+      indexName: "seriesId-cachedAt-index",
+      partitionKey: { name: "seriesId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "cachedAt", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // ── S3 Bucket ──────────────────────────────────────────────────────────
 
     const sourcesBucket = new s3.Bucket(this, "SourcesBucket", {
@@ -102,7 +117,10 @@ export class InfraStack extends cdk.Stack {
       code: lambda.Code.fromAsset(
         path.join(__dirname, "../../backend/app/dist"),
       ),
-      environment: { ANALYSES_TABLE: analysesTable.tableName },
+      environment: {
+        ANALYSES_TABLE: analysesTable.tableName,
+        ECONOMIC_DATA_TABLE: economicDataTable.tableName,
+      },
     });
 
     const nemotronSecretArn = this.node.tryGetContext("nemotronSecretArn") as
@@ -117,9 +135,22 @@ export class InfraStack extends cdk.Stack {
       applicationFn.addEnvironment("NVIDIA_SECRET_ARN", nemotronSecretArn);
     }
 
+    const fredSecretArn = this.node.tryGetContext("fredSecretArn") as
+      string | undefined;
+    if (fredSecretArn) {
+      const fredSecret = secretsmanager.Secret.fromSecretPartialArn(
+        this,
+        "FredSecret",
+        fredSecretArn,
+      );
+      fredSecret.grantRead(applicationFn);
+      applicationFn.addEnvironment("FRED_SECRET_ARN", fredSecretArn);
+    }
+
     // ── IAM Grants ─────────────────────────────────────────────────────────
 
     analysesTable.grantReadWriteData(applicationFn);
+    economicDataTable.grantReadWriteData(applicationFn);
     sourcesBucket.grantWrite(sourcesFn);
 
     // ── Cognito (preserved) ────────────────────────────────────────────────
@@ -245,6 +276,30 @@ export class InfraStack extends cdk.Stack {
       "AnalysesInt",
       apigwv2.HttpMethod.POST,
       "/analyses",
+      applicationFn,
+    );
+    addRoute(
+      "FredSeriesListInt",
+      apigwv2.HttpMethod.GET,
+      "/fred/series",
+      applicationFn,
+    );
+    addRoute(
+      "FredSeriesGetInt",
+      apigwv2.HttpMethod.GET,
+      "/fred/series/{id}",
+      applicationFn,
+    );
+    addRoute(
+      "FredSignalsInt",
+      apigwv2.HttpMethod.GET,
+      "/fred/signals",
+      applicationFn,
+    );
+    addRoute(
+      "FredImpactInt",
+      apigwv2.HttpMethod.GET,
+      "/fred/impact/{id}",
       applicationFn,
     );
     addRoute(

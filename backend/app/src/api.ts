@@ -8,6 +8,9 @@ import {
   type Analyzer,
 } from "./service";
 import { memoryStore, type AnalysisStore } from "./store";
+import { steelCityBeverages } from "../../financial-engine/src/steel-city-beverages";
+import type { FredService } from "./fred/service";
+import { isFredAvailable } from "./fred/service";
 export interface ApiRequest {
   method: string;
   path: string;
@@ -23,9 +26,11 @@ export function createApi(
     store?: AnalysisStore;
     analyzer?: Analyzer;
     intelligenceAvailable?: boolean;
+    fredService?: FredService;
   } = {},
 ) {
   const store = options.store ?? memoryStore();
+  const fredService = options.fredService;
   const reply = (statusCode: number, data: unknown): ApiResponse => ({
     statusCode,
     headers: {
@@ -71,6 +76,53 @@ export function createApi(
         return record
           ? reply(200, record)
           : reply(404, { error: "Analysis not found" });
+      }
+      // FRED economic data endpoints
+      if (method === "GET" && route === "/fred/series") {
+        if (!fredService || !isFredAvailable) {
+          return reply(503, {
+            error: "FRED integration not configured. Set FRED_API_KEY.",
+          });
+        }
+        const series = await fredService.getConfiguredSeries();
+        return reply(200, series);
+      }
+      if (method === "GET" && route.startsWith("/fred/series/")) {
+        if (!fredService) {
+          return reply(503, {
+            error: "FRED integration not configured. Set FRED_API_KEY.",
+          });
+        }
+        const seriesId = route.slice("/fred/series/".length);
+        const series = await fredService.getSeries(seriesId);
+        return series
+          ? reply(200, series)
+          : reply(404, { error: "Series not found or not in allowlist" });
+      }
+      if (method === "GET" && route === "/fred/signals") {
+        if (!fredService) {
+          return reply(503, {
+            error: "FRED integration not configured. Set FRED_API_KEY.",
+          });
+        }
+        const signals = await fredService.getSignals();
+        return reply(200, signals);
+      }
+      if (method === "GET" && route.startsWith("/fred/impact/")) {
+        if (!fredService) {
+          return reply(503, {
+            error: "FRED integration not configured. Set FRED_API_KEY.",
+          });
+        }
+        const signalId = route.slice("/fred/impact/".length);
+        // Use Steel City Beverages as default company
+        const impacts = await fredService.calculateImpact(
+          decodeURIComponent(signalId),
+          steelCityBeverages,
+        );
+        return impacts.length > 0
+          ? reply(200, impacts)
+          : reply(404, { error: "Signal not found or no impact" });
       }
       if (
         method !== "POST" ||
