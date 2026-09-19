@@ -150,7 +150,7 @@ export class InfraStack extends cdk.Stack {
     // ── Cognito (preserved) ────────────────────────────────────────────────
 
     const userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: 'template-user-pool',
+      userPoolName: 'margin-guard-user-pool',
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
@@ -168,7 +168,7 @@ export class InfraStack extends cdk.Stack {
 
     const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
       userPool,
-      userPoolClientName: 'template-app-client',
+      userPoolClientName: 'margin-guard-app-client',
       authFlows: { userSrp: true, userPassword: true },
       oAuth: {
         flows: { authorizationCodeGrant: true },
@@ -182,7 +182,7 @@ export class InfraStack extends cdk.Stack {
     // ── Amplify (VITE_API_URL updated to HTTP API) ─────────────────────────
 
     const amplifyApp = new amplify.CfnApp(this, 'AmplifyApp', {
-      name: 'template-frontend',
+      name: 'margin-guard-frontend',
       environmentVariables: [
         { name: 'VITE_USER_POOL_ID',        value: userPool.userPoolId },
         { name: 'VITE_USER_POOL_CLIENT_ID', value: userPoolClient.userPoolClientId },

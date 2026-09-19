@@ -183,7 +183,7 @@ npm run build
 
 # 3. Get the Amplify App ID from CloudFormation
 AMPLIFY_APP_ID=$(aws cloudformation describe-stacks \
-    --stack-name TemplateInfraStack \
+    --stack-name MarginGuardStack \
     --query "Stacks[0].Outputs[?OutputKey=='AmplifyAppId'].OutputValue" \
     --output text)
 
