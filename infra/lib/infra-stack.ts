@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
@@ -75,37 +74,27 @@ export class InfraStack extends cdk.Stack {
       SOURCES_BUCKET: sourcesBucket.bucketName,
     };
 
-    const commonBundling: lambdaNode.BundlingOptions = {
-      externalModules: ['@aws-sdk/*'],
-      minify: true,
-      sourceMap: false,
-      target: 'node22',
-    };
+    const lambdaDir = path.join(__dirname, '../../backend/lambda');
 
-    const repoRoot = path.join(__dirname, '../../');
-    const lambdaDir = path.join(repoRoot, 'backend/lambda');
-
-    const fn = (id: string, entry: string): lambdaNode.NodejsFunction =>
-      new lambdaNode.NodejsFunction(this, id, {
-        runtime: lambda.Runtime.NODEJS_22_X,
+    const fn = (id: string, dir: string): lambda.Function =>
+      new lambda.Function(this, id, {
+        runtime: lambda.Runtime.PYTHON_3_13,
         architecture: lambda.Architecture.ARM_64,
         memorySize: 256,
         timeout: cdk.Duration.seconds(30),
+        handler: 'handler.handler',
+        code: lambda.Code.fromAsset(path.join(lambdaDir, dir)),
         environment: commonEnv,
-        bundling: commonBundling,
-        entry: path.join(lambdaDir, entry),
-        handler: 'handler',
-        projectRoot: repoRoot,
       });
 
     // ── Lambda Functions ───────────────────────────────────────────────────
 
-    const healthFn    = fn('HealthFunction',    'health.ts');
-    const companiesFn = fn('CompaniesFunction', 'companies.ts');
-    const eventsFn    = fn('EventsFunction',    'events.ts');
-    const sourcesFn   = fn('SourcesFunction',   'sources.ts');
-    const analysesFn  = fn('AnalysesFunction',  'analyses.ts');
-    const scenariosFn = fn('ScenariosFunction', 'scenarios.ts');
+    const healthFn    = fn('HealthFunction',    'health');
+    const companiesFn = fn('CompaniesFunction', 'companies');
+    const eventsFn    = fn('EventsFunction',    'events');
+    const sourcesFn   = fn('SourcesFunction',   'sources');
+    const analysesFn  = fn('AnalysesFunction',  'analyses');
+    const scenariosFn = fn('ScenariosFunction', 'scenarios');
 
     // ── IAM Grants ─────────────────────────────────────────────────────────
 
@@ -179,7 +168,7 @@ export class InfraStack extends cdk.Stack {
       preventUserExistenceErrors: true,
     });
 
-    // ── Amplify (VITE_API_URL updated to HTTP API) ─────────────────────────
+    // ── Amplify ────────────────────────────────────────────────────────────
 
     const amplifyApp = new amplify.CfnApp(this, 'AmplifyApp', {
       name: 'margin-guard-frontend',
