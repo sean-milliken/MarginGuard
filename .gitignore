@@ -3,7 +3,10 @@
 /frontend/.env
 /.claude/
 /frontend/dist/
+/node_modules/
 /frontend/node_modules/
+/infra/node_modules/
+/package-lock.json
 /infra/package-lock.json
 /frontend/package-lock.json
 /slides/node_modules/
