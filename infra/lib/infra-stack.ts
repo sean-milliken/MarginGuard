@@ -138,7 +138,7 @@ export class InfraStack extends cdk.Stack {
     const fredSecretArn = this.node.tryGetContext("fredSecretArn") as
       string | undefined;
     if (fredSecretArn) {
-      const fredSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      const fredSecret = secretsmanager.Secret.fromSecretPartialArn(
         this,
         "FredSecret",
         fredSecretArn,
