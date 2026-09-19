@@ -1,5 +1,32 @@
 {
   "name": "marginguard",
   "version": "0.1.0",
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "frontend",
+    "nemotron",
+    "shared",
+    "backend/financial-engine",
+    "backend/app",
+    "infra"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w @marginguard/financial-engine && npm run build -w nemotron && npm run build -w @marginguard/app && npm run build -w frontend && npm run build -w infra",
+    "test": "npm test -w @marginguard/financial-engine && npm test -w nemotron -- --runInBand && npm test -w @marginguard/app",
+    "check": "npm run build && npm test",
+    "start": "npm start -w @marginguard/app",
+    "test:e2e": "playwright test",
+    "eval:nemotron": "npm run eval:nemotron -w nemotron",
+    "build:demo": "npm run build && npm run build:demo -w frontend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.3"
+  }
 }

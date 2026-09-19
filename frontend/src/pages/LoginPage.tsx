@@ -1,15 +1,15 @@
-import { type FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
-import { useAuth } from '../contexts/AuthContext';
+import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -18,10 +18,10 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
 
-      if (result.status === 'newPasswordRequired') {
-        navigate('/change-password');
+      if (result.status === "newPasswordRequired") {
+        navigate("/change-password");
       } else {
-        navigate('/');
+        navigate("/");
       }
     } catch {
       // Error is handled by the auth context
@@ -48,8 +48,8 @@ export default function LoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-600 mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-text-primary">Welcome back</h1>
+          <p className="text-text-secondary mt-1">Sign in to your account</p>
         </div>
 
         <Card>
@@ -86,7 +86,11 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <p className="text-center text-sm text-gray-500 mt-6">Protected by AWS Cognito</p>
+        <p className="text-center text-sm text-gray-500 mt-6">
+          {import.meta.env.VITE_MOCK_MODE === "true"
+            ? "Local demo — use any email and password"
+            : "Protected by AWS Cognito"}
+        </p>
       </div>
     </div>
   );

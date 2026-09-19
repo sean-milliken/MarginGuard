@@ -1,3 +1,5 @@
+> For the integrated MarginGuard application, start with [INTEGRATION.md](INTEGRATION.md). Install dependencies at the repository root with `npm ci`; the commands below describe the original infrastructure workflow.
+
 # Developer Guide
 
 ## Prerequisites

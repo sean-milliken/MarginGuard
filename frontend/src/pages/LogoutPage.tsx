@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function LogoutPage() {
   const navigate = useNavigate();
@@ -33,12 +33,15 @@ export default function LogoutPage() {
             </svg>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">You've been signed out</h1>
-          <p className="text-gray-600 mb-6">
-            Thank you for using our application. You have been successfully logged out.
+          <h1 className="text-2xl font-bold text-text-primary mb-2">
+            You've been signed out
+          </h1>
+          <p className="text-text-secondary mb-6">
+            Thank you for using our application. You have been successfully
+            logged out.
           </p>
 
-          <Button onClick={() => navigate('/login')}>Back to Sign in</Button>
+          <Button onClick={() => navigate("/login")}>Back to Sign in</Button>
         </Card>
       </div>
     </div>

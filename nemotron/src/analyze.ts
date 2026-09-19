@@ -1,22 +1,27 @@
 import {
   NemotronAnalysisResultSchema,
   type NemotronAnalysisResult,
-} from './schemas/analysis';
+} from "./schemas/analysis";
 import {
   createNvidiaClient,
   resolveModelId,
   callNvidiaApi,
   type NvidiaClientConfig,
-} from './client/nvidia';
+} from "./client/nvidia";
 import {
   buildMessages,
   buildCorrectionMessages,
   type PromptInput,
   type ResponseOption,
-} from './client/prompts';
-import type { BusinessContext } from './schemas/eval';
+} from "./client/prompts";
+import type { BusinessContext } from "./schemas/eval";
 
-export type { PromptInput, ResponseOption, NvidiaClientConfig, BusinessContext };
+export type {
+  PromptInput,
+  ResponseOption,
+  NvidiaClientConfig,
+  BusinessContext,
+};
 
 export interface AnalysisInput {
   articleText: string;
@@ -24,7 +29,8 @@ export interface AnalysisInput {
   responseOptions?: ResponseOption[];
 }
 
-export type AnalysisErrorType = 'API_ERROR' | 'VALIDATION_ERROR' | 'PARSE_ERROR';
+export type AnalysisErrorType =
+  "API_ERROR" | "VALIDATION_ERROR" | "PARSE_ERROR";
 
 export interface AnalysisError {
   type: AnalysisErrorType;
@@ -51,15 +57,18 @@ type ParseResult =
   | { success: false; errors: string[] };
 
 // Geography type values the model sometimes misplaces into entities.type
-const GEOGRAPHY_TYPES = new Set(['COUNTRY', 'REGION', 'CITY']);
+const GEOGRAPHY_TYPES = new Set(["COUNTRY", "REGION", "CITY"]);
 
 function extractJson(raw: string): string {
   // Strip markdown fences
-  let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
   // If direct parse fails, try to extract the outermost {...} block
-  if (!cleaned.startsWith('{')) {
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
+  if (!cleaned.startsWith("{")) {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
     if (start !== -1 && end > start) {
       cleaned = cleaned.slice(start, end + 1);
     }
@@ -70,8 +79,8 @@ function extractJson(raw: string): string {
 function normalizeEntities(parsed: Record<string, unknown>): void {
   // The model sometimes puts COUNTRY/REGION/CITY in entities.type instead of geographies.
   // Move those entries to geographies and remove them from entities.
-  const entities = parsed['entities'];
-  const geographies = parsed['geographies'];
+  const entities = parsed["entities"];
+  const geographies = parsed["geographies"];
   if (!Array.isArray(entities) || !Array.isArray(geographies)) return;
 
   const misplaced: Array<{ name: string; type: string }> = [];
@@ -80,13 +89,13 @@ function normalizeEntities(parsed: Record<string, unknown>): void {
   for (const e of entities) {
     if (
       e != null &&
-      typeof e === 'object' &&
-      typeof (e as Record<string, unknown>)['type'] === 'string' &&
-      GEOGRAPHY_TYPES.has((e as Record<string, unknown>)['type'] as string)
+      typeof e === "object" &&
+      typeof (e as Record<string, unknown>)["type"] === "string" &&
+      GEOGRAPHY_TYPES.has((e as Record<string, unknown>)["type"] as string)
     ) {
       misplaced.push({
-        name: String((e as Record<string, unknown>)['name'] ?? ''),
-        type: String((e as Record<string, unknown>)['type']),
+        name: String((e as Record<string, unknown>)["name"] ?? ""),
+        type: String((e as Record<string, unknown>)["type"]),
       });
     } else {
       validEntities.push(e);
@@ -95,11 +104,13 @@ function normalizeEntities(parsed: Record<string, unknown>): void {
 
   if (misplaced.length === 0) return;
 
-  parsed['entities'] = validEntities;
+  parsed["entities"] = validEntities;
   const existingGeoNames = new Set(
     geographies
-      .filter((g) => g != null && typeof g === 'object')
-      .map((g) => String((g as Record<string, unknown>)['name'] ?? '').toLowerCase()),
+      .filter((g) => g != null && typeof g === "object")
+      .map((g) =>
+        String((g as Record<string, unknown>)["name"] ?? "").toLowerCase(),
+      ),
   );
   for (const m of misplaced) {
     if (!existingGeoNames.has(m.name.toLowerCase())) {
@@ -114,10 +125,10 @@ function parseAndValidate(raw: string): ParseResult {
   try {
     parsed = JSON.parse(extractJson(raw));
   } catch {
-    return { success: false, errors: ['Response is not valid JSON'] };
+    return { success: false, errors: ["Response is not valid JSON"] };
   }
 
-  if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+  if (parsed != null && typeof parsed === "object" && !Array.isArray(parsed)) {
     normalizeEntities(parsed as Record<string, unknown>);
   }
 
@@ -127,7 +138,7 @@ function parseAndValidate(raw: string): ParseResult {
   }
 
   const errors = result.error.issues.map(
-    (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+    (issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`,
   );
   return { success: false, errors };
 }
@@ -141,12 +152,17 @@ export async function analyzeArticle(
   const promptInput: PromptInput = input;
 
   const messages = buildMessages(promptInput);
-  const attempt1 = await callNvidiaApi(client, modelId, messages);
+  const attempt1 = await callNvidiaApi(
+    client,
+    modelId,
+    messages,
+    config?.maxAttempts,
+  );
 
   if (!attempt1.success) {
     return {
       success: false,
-      error: { type: 'API_ERROR', message: attempt1.error },
+      error: { type: "API_ERROR", message: attempt1.error },
       retried: false,
       firstAttemptSchemaValid: false,
     };
@@ -162,13 +178,22 @@ export async function analyzeArticle(
     };
   }
 
-  const correctionMessages = buildCorrectionMessages(messages, attempt1.content, parse1.errors);
-  const attempt2 = await callNvidiaApi(client, modelId, correctionMessages);
+  const correctionMessages = buildCorrectionMessages(
+    messages,
+    attempt1.content,
+    parse1.errors,
+  );
+  const attempt2 = await callNvidiaApi(
+    client,
+    modelId,
+    correctionMessages,
+    config?.maxAttempts,
+  );
 
   if (!attempt2.success) {
     return {
       success: false,
-      error: { type: 'API_ERROR', message: attempt2.error },
+      error: { type: "API_ERROR", message: attempt2.error },
       retried: true,
       firstAttemptSchemaValid: false,
     };
@@ -187,8 +212,8 @@ export async function analyzeArticle(
   return {
     success: false,
     error: {
-      type: 'VALIDATION_ERROR',
-      message: 'Schema validation failed after correction retry',
+      type: "VALIDATION_ERROR",
+      message: "Schema validation failed after correction retry",
       validationErrors: parse2.errors,
     },
     retried: true,

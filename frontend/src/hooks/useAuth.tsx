@@ -2,9 +2,16 @@ import {
   AuthenticationDetails,
   CognitoUser,
   type CognitoUserSession,
-} from 'amazon-cognito-identity-js';
-import { type ReactNode, createContext, useCallback, useContext, useState } from 'react';
-import { userPool } from '../config/cognito';
+} from "amazon-cognito-identity-js";
+import {
+  type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
+import { userPool } from "../config/cognito";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -22,59 +29,83 @@ interface AuthContextType {
 }
 
 type LoginResult =
-  | { status: 'success'; session: CognitoUserSession }
-  | { status: 'newPasswordRequired'; userAttributes: Record<string, string> };
+  | { status: "success"; session: CognitoUserSession }
+  | { status: "newPasswordRequired"; userAttributes: Record<string, string> };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cognitoUser, setCognitoUser] = useState<CognitoUser | null>(null);
-  const [userAttributes, setUserAttributes] = useState<Record<string, string>>({});
+  const [userAttributes, setUserAttributes] = useState<Record<string, string>>(
+    {},
+  );
+
+  useEffect(() => {
+    const user = userPool.getCurrentUser();
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (!err && session?.isValid()) {
+        setIsAuthenticated(true);
+        setCognitoUser(user);
+        setUserAttributes({
+          email: session.getIdToken().payload.email ?? user.getUsername(),
+        });
+      }
+      setIsLoading(false);
+    });
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
-    setIsLoading(true);
-    setError(null);
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      setIsLoading(true);
+      setError(null);
 
-    const user = new CognitoUser({
-      Username: email,
-      Pool: userPool,
-    });
-
-    const authDetails = new AuthenticationDetails({
-      Username: email,
-      Password: password,
-    });
-
-    return new Promise((resolve, reject) => {
-      user.authenticateUser(authDetails, {
-        onSuccess: (session) => {
-          setIsAuthenticated(true);
-          setCognitoUser(user);
-          setIsLoading(false);
-          resolve({ status: 'success', session });
-        },
-        onFailure: (err) => {
-          setIsLoading(false);
-          const message = err.message || 'Authentication failed';
-          setError(message);
-          reject(new Error(message));
-        },
-        newPasswordRequired: (attrs) => {
-          setCognitoUser(user);
-          setUserAttributes(attrs);
-          setIsLoading(false);
-          resolve({ status: 'newPasswordRequired', userAttributes: attrs });
-        },
+      const user = new CognitoUser({
+        Username: email,
+        Pool: userPool,
       });
-    });
-  }, []);
+
+      const authDetails = new AuthenticationDetails({
+        Username: email,
+        Password: password,
+      });
+
+      return new Promise((resolve, reject) => {
+        user.authenticateUser(authDetails, {
+          onSuccess: (session) => {
+            setIsAuthenticated(true);
+            setCognitoUser(user);
+            setUserAttributes({ email });
+            setIsLoading(false);
+            resolve({ status: "success", session });
+          },
+          onFailure: (err) => {
+            setIsLoading(false);
+            const message = err.message || "Authentication failed";
+            setError(message);
+            reject(new Error(message));
+          },
+          newPasswordRequired: (attrs) => {
+            setCognitoUser(user);
+            setUserAttributes(attrs);
+            setIsLoading(false);
+            resolve({ status: "newPasswordRequired", userAttributes: attrs });
+          },
+        });
+      });
+    },
+    [],
+  );
 
   const completeNewPasswordChallenge = useCallback(
     async (
@@ -82,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       attributes?: { givenName?: string; familyName?: string },
     ): Promise<void> => {
       if (!cognitoUser) {
-        throw new Error('No user session found');
+        throw new Error("No user session found");
       }
 
       setIsLoading(true);
@@ -97,19 +128,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return new Promise((resolve, reject) => {
-        cognitoUser.completeNewPasswordChallenge(newPassword, requiredAttributes, {
-          onSuccess: () => {
-            setIsAuthenticated(true);
-            setIsLoading(false);
-            resolve();
+        cognitoUser.completeNewPasswordChallenge(
+          newPassword,
+          requiredAttributes,
+          {
+            onSuccess: () => {
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              resolve();
+            },
+            onFailure: (err) => {
+              setIsLoading(false);
+              const message = err.message || "Password change failed";
+              setError(message);
+              reject(new Error(message));
+            },
           },
-          onFailure: (err) => {
-            setIsLoading(false);
-            const message = err.message || 'Password change failed';
-            setError(message);
-            reject(new Error(message));
-          },
-        });
+        );
       });
     },
     [cognitoUser],
@@ -148,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
