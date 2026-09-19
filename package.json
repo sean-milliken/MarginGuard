@@ -1,8 +1,5 @@
 {
   "name": "marginguard",
   "version": "0.1.0",
-  "private": true,
-  "devDependencies": {
-    "esbuild": "^0.25.0"
-  }
+  "private": true
 }
