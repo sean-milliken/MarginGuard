@@ -11,3 +11,10 @@
 /frontend/package-lock.json
 /slides/node_modules/
 /slides/dist/
+
+# Nemotron package
+/nemotron/.env
+/nemotron/node_modules/
+/nemotron/dist/
+/nemotron/eval-results.json
+/nemotron/package-lock.json

@@ -1,0 +1,25 @@
+{
+  "name": "nemotron",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "eval:nemotron": "tsx src/eval/harness.ts",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "openai": "^4.104.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.3"
+  }
+}
