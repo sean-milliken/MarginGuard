@@ -24,14 +24,14 @@ Open http://127.0.0.1:3001. `build:demo` explicitly selects demo auth; normal de
 
 ## Walkthrough
 
-1. Choose **Try the demo** on the setup screen (or personalize its display label; financial inputs remain synthetic). Dashboard: inspect the default 15-day logistics disruption ($648,000 revenue and $276,000 contribution at risk).
-2. Switch among 7-, 15-, and 30-day scenarios. The UI calls the API and replaces the report with calculated results.
-3. Model Impact: choose the disrupted supplier, duration, and unavailable-delivery percentage. Zero disruption produces zero exposure. Read the supplier → component → product path and calculation steps.
-4. Recovery Options: compare doing nothing with capacity-limited alternate supply. For the default event, extra cost is $19,500 and net benefit is $187,500. No procurement actions are executed.
-5. Company: inspect monthly volumes, prices, variable costs, supplier dependencies, alternate premiums, and shipping costs.
-6. Sources: inspect the explicitly labeled synthetic scenario brief.
-7. News Analysis: submit source text for Nemotron classification, entities, evidence, and qualitative option rankings when configured. This never changes the financial report or its numeric assumptions.
-8. AI Accuracy: explains how to run the existing evaluation harness; no invented evaluation scores are shown.
+1. Choose **Open Dashboard**. The dominant event shows $276,000 Margin at Risk, the affected supplier/component, and a $187,500 recommended net benefit.
+2. Choose **Run Judge Demo** to save a fresh repeatable scenario, or **View Analysis** to inspect the current one. Analysis follows Detect → Trace → Quantify → Decide.
+3. Expand **How was this calculated?**, compare response options, and inspect **Why this recommendation?**. No procurement actions are executed.
+4. Adjust **What-if stress test** inputs beside the decision flow. The same deterministic engine recomputes the estimate; these changes are unsaved. Source Evidence and Processing Trace expand on request.
+5. Use **Scenarios** for 7-, 15-, and 30-day presets, the no-impact event, or custom supplier/duration/availability inputs.
+6. **Intelligence** provides a risk inbox and source submission for Nemotron's qualitative analysis. Unanalyzed headlines never receive invented financial values.
+7. Expand **Company & sources** in the sidebar for the synthetic company inputs and source feeds.
+8. **Evals** loads local harness results when available. Classification accuracy, relevance F1, and schema validity lead; detailed metrics, errors, and dataset composition expand on request.
 
 ## Nemotron configuration
 

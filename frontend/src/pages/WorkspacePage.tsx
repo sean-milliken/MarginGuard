@@ -13,7 +13,10 @@ import {
   type EconomicSignal,
 } from "../lib/api";
 export default function WorkspacePage() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [pathname, hash]);
   const navigate = useNavigate();
   const { companyName } = useSetup();
   const {
@@ -84,15 +87,15 @@ export default function WorkspacePage() {
     id;
   const pageTitles: Record<string, { title: string; sub: string }> = {
     "/analysis": {
-      title: "Model Impact",
-      sub: "Adjust the disruption below to see how it affects your cash and products.",
+      title: "Event analysis",
+      sub: "Detect → Trace → Quantify → Decide",
     },
     "/responses": {
       title: "Recovery Options",
       sub: "These are your options to reduce the impact. Financial simulations only — no orders are placed.",
     },
     "/intelligence": {
-      title: "News Analysis",
+      title: "Intelligence",
       sub: "Paste a news article or supply chain alert. AI will identify what's disrupted and who's affected.",
     },
     "/sources": {
@@ -104,7 +107,7 @@ export default function WorkspacePage() {
       sub: "The products, materials, and suppliers behind the financial model.",
     },
     "/evals": {
-      title: "AI Accuracy",
+      title: "Evals",
       sub: "Results from testing the AI's analysis against labeled examples.",
     },
   };
@@ -128,11 +131,16 @@ export default function WorkspacePage() {
   return (
     <div className="min-h-screen flex app-shell">
       <Sidebar />
-      <main className="ml-[220px] p-6 flex-1 min-w-0 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-300">{title}</h1>
-          {sub && <p className="text-sm text-text-secondary mt-1">{sub}</p>}
-        </div>
+      <main className="ml-[220px] p-6 flex-1 min-w-0 space-y-6 workspace-main">
+        <header className="page-header">
+          <div>
+            <h1 className="text-2xl font-bold text-primary-300">{title}</h1>
+            {sub && <p className="text-sm text-text-secondary mt-1">{sub}</p>}
+          </div>
+          {["/analysis", "/responses"].includes(pathname) && (
+            <JudgeDemo compact />
+          )}
+        </header>
         {error && (
           <p role="alert" className="text-error">
             {error}
@@ -141,7 +149,6 @@ export default function WorkspacePage() {
         {busy && <p role="status">Working…</p>}
         {["/analysis", "/responses"].includes(pathname) && (
           <>
-            <JudgeDemo />
             <FinancialDecision
               key={JSON.stringify([
                 analysisRevision,
@@ -176,16 +183,64 @@ export default function WorkspacePage() {
             )}
           </>
         )}
-        {pathname === "/analysis" && (
-          <details className={panel} open>
-            <summary className="font-semibold cursor-pointer">
-              Saved scenario &amp; advanced inputs
-            </summary>
+        {pathname === "/scenarios" && (
+          <section className="space-y-5">
+            <p>
+              Choose a repeatable scenario, or set your own disruption inputs.
+            </p>
+            <label className="block">
+              Scenario
+              <select
+                aria-label="Scenario"
+                className="block p-3 bg-bg-secondary border border-border rounded mt-2"
+                disabled={busy}
+                value={snapshot.selectedScenarioId}
+                onChange={(e) =>
+                  void runScenario(e.target.value).then((result) => {
+                    if (result) navigate("/analysis");
+                  })
+                }
+              >
+                <option value="custom" disabled>
+                  Custom disruption
+                </option>
+                <option value="logistics-15-days">
+                  15-day freight disruption
+                </option>
+                <option value="logistics-7-days">
+                  7-day freight disruption
+                </option>
+                <option value="logistics-30-days">
+                  30-day freight disruption
+                </option>
+                <option value="irrelevant-leadership">
+                  Leadership announcement · no impact
+                </option>
+              </select>
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <JudgeDemo compact />
+              <button
+                className="secondary-button"
+                disabled={busy}
+                onClick={() =>
+                  void runScenario("irrelevant-leadership").then((result) => {
+                    if (result) navigate("/analysis");
+                  })
+                }
+              >
+                No-impact scenario
+              </button>
+            </div>
             <form
               className={panel}
               onSubmit={(e) => {
                 e.preventDefault();
-                void runScenario("custom", days, severity, supplier);
+                void runScenario("custom", days, severity, supplier).then(
+                  (result) => {
+                    if (result) navigate("/analysis");
+                  },
+                );
               }}
             >
               <h2 className="font-semibold">What's the disruption?</h2>
@@ -243,143 +298,10 @@ export default function WorkspacePage() {
                 page. Hit Calculate to see the updated financial impact.
               </p>
             </form>
-            <section className={panel}>
-              <h2 className="font-semibold">Financial impact</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  {
-                    label: "Cases affected",
-                    value: report.affectedUnits.toLocaleString(),
-                    plain: true,
-                  },
-                  {
-                    label: "Sales at risk",
-                    value: money(report.revenueAtRiskCents),
-                    plain: true,
-                  },
-                  {
-                    label: "Contribution margin at risk",
-                    value: money(report.contributionMarginAtRiskCents),
-                    plain: true,
-                  },
-                  {
-                    label: "Cash change vs. normal month",
-                    value: money(report.cashImpactCents),
-                    negative: report.cashImpactCents < 0,
-                  },
-                ].map(({ label, value, negative }) => (
-                  <div
-                    key={label}
-                    className="rounded-lg bg-bg-secondary p-3 space-y-1"
-                  >
-                    <p className="text-xs text-text-secondary uppercase tracking-wide">
-                      {label}
-                    </p>
-                    <p
-                      className={`text-lg font-bold tabular-nums ${negative ? "text-error" : ""}`}
-                    >
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">
-                  What gets affected
-                </p>
-                <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                  {(report.affectedSuppliers.length
-                    ? report.affectedSuppliers.map(name)
-                    : ["No suppliers affected"]
-                  ).map((n) => (
-                    <span
-                      key={n}
-                      className="rounded bg-bg-secondary px-2 py-0.5 border border-border"
-                    >
-                      {n}
-                    </span>
-                  ))}
-                  <span className="text-text-secondary px-1">→</span>
-                  {(report.affectedComponents.length
-                    ? report.affectedComponents.map((c) => name(c.componentId))
-                    : ["No shortage"]
-                  ).map((n) => (
-                    <span
-                      key={n}
-                      className="rounded bg-bg-secondary px-2 py-0.5 border border-border"
-                    >
-                      {n}
-                    </span>
-                  ))}
-                  <span className="text-text-secondary px-1">→</span>
-                  {(report.affectedProducts.length
-                    ? report.affectedProducts.map((p) => name(p.productId))
-                    : ["No products affected"]
-                  ).map((n) => (
-                    <span
-                      key={n}
-                      className="rounded bg-bg-secondary px-2 py-0.5 border border-border"
-                    >
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
-            <details className={panel}>
-              <summary className="font-semibold cursor-pointer list-none flex items-center justify-between">
-                <span>How this was calculated</span>
-                <span className="text-xs text-text-secondary font-normal">
-                  click to expand
-                </span>
-              </summary>
-              <ol className="divide-y divide-border/40 mt-2">
-                {report.calculationSteps.map((step, i) => (
-                  <li
-                    key={i}
-                    className="grid grid-cols-[2rem_1fr_auto] items-baseline gap-x-2 py-2 text-sm"
-                  >
-                    <span className="text-text-secondary tabular-nums text-right">
-                      {i + 1}.
-                    </span>
-                    <code className="font-mono text-text-secondary break-all">
-                      {step.formula}
-                    </code>
-                    <span className="font-semibold tabular-nums whitespace-nowrap pl-4">
-                      {step.result.toLocaleString()}{" "}
-                      <span className="font-normal text-text-secondary">
-                        {step.unit}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </details>
-            <div className="flex justify-end">
-              <button
-                onClick={() => navigate("/responses")}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 transition-colors"
-              >
-                See your recovery options
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </button>
-            </div>
-          </details>
+          </section>
         )}
         {pathname === "/responses" && (
-          <details className={panel} open>
+          <details className={panel}>
             <summary className="font-semibold cursor-pointer">
               Saved scenario response details
             </summary>
@@ -485,7 +407,7 @@ export default function WorkspacePage() {
           <>
             {news.length > 0 && (
               <section className={panel}>
-                <h2 className="font-semibold">Recent news headlines</h2>
+                <h2 className="font-semibold">Risk inbox</h2>
                 <p className="text-xs text-text-tertiary">
                   Use a headline as input, or paste the full article text below.
                   Article bodies are not fetched automatically.
@@ -510,7 +432,7 @@ export default function WorkspacePage() {
                           {a.title}
                         </a>
                         <p className="text-xs text-text-tertiary">
-                          {a.domain} · {gdeltDate(a.seendate)}
+                          {a.domain} · {gdeltDate(a.seendate)} · Not analyzed
                         </p>
                       </div>
                     </li>
@@ -594,7 +516,7 @@ export default function WorkspacePage() {
               {!snapshot.intelligenceAvailable && (
                 <p role="status" className="text-sm text-text-secondary">
                   AI analysis is currently unavailable. You can still model
-                  financial impact on the Model Impact page.
+                  financial impact on the Scenarios page.
                 </p>
               )}
             </form>
@@ -700,7 +622,7 @@ export default function WorkspacePage() {
                     onClick={() => navigate("/analysis")}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 transition-colors"
                   >
-                    Model the financial impact
+                    View financial impact
                     <svg
                       className="w-4 h-4"
                       fill="none"

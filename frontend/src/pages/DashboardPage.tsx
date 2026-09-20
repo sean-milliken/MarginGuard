@@ -2,251 +2,198 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useData } from "../contexts/DataContext";
 import { useSetup } from "../contexts/SetupContext";
-import {
-  CriticalRiskCard,
-  SupplierExposure,
-} from "../components/features/Dashboard";
+import { SupplierExposure } from "../components/features/Dashboard";
 import { EconomicSignals } from "../components/features/Dashboard/EconomicSignals";
 import { Sidebar } from "../components/layout/Sidebar";
 import { JudgeDemo } from "../components/JudgeDemo";
 import { getEconomicSignals, type EconomicSignal } from "../lib/api";
-
+import { recommendedResponse } from "../../../backend/financial-engine/src/sensitivity";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { companyName } = useSetup();
-  const {
-    company,
-    currentScenario,
-    currentEvent,
-    snapshot,
-    busy,
-    error,
-    runScenario,
-  } = useData();
-
-  const [economicSignals, setEconomicSignals] = useState<EconomicSignal[]>([]);
-  const [loadingSignals, setLoadingSignals] = useState(true);
-  const [signalsError, setSignalsError] = useState<string | null>(null);
-
+  const { company, snapshot, error } = useData();
+  const [signals, setSignals] = useState<EconomicSignal[]>([]);
+  const [signalError, setSignalError] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const fetchSignals = async () => {
-      try {
-        const signals = await getEconomicSignals();
-        setEconomicSignals(signals);
-      } catch (err) {
-        setSignalsError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load economic indicators",
-        );
-      } finally {
-        setLoadingSignals(false);
-      }
+    let active = true;
+    getEconomicSignals()
+      .then((data) => {
+        if (active) setSignals(data);
+      })
+      .catch(() => {
+        if (active)
+          setSignalError(
+            "Economic observations are temporarily unavailable. Scenario analysis remains available.",
+          );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
     };
-    void fetchSignals();
   }, []);
-  const report = snapshot.report;
-  const best = report.responseOptions.reduce((a, b) =>
-    b.netFinancialBenefitCents > a.netFinancialBenefitCents ? b : a,
-  );
+  const { report, event } = snapshot;
+  const best = recommendedResponse(report);
   const money = (cents: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: snapshot.company.currency,
       maximumFractionDigits: 0,
     }).format(cents / 100);
+  const supplierNames = report.affectedSuppliers
+    .map((id) => snapshot.company.suppliers.find((s) => s.id === id)?.name)
+    .join(", ");
+  const componentNames = report.affectedComponents
+    .map(
+      (c) =>
+        snapshot.company.components.find((x) => x.id === c.componentId)?.name,
+    )
+    .join(", ");
   return (
     <div className="min-h-screen flex app-shell">
       <Sidebar />
-      <div className="flex-1 ml-[220px] min-w-0">
-        <header className="border-b border-border bg-bg-primary/80 p-6 flex flex-wrap items-center justify-between gap-4">
+      <main className="ml-[220px] flex-1 min-w-0 workspace-main">
+        <header className="page-header">
           <div>
-            <h1 className="text-xl font-bold text-primary-300">
-              Supply Chain Risk Monitor
-            </h1>
-            <p className="text-sm text-text-secondary">
-              {companyName} · synthetic manufacturing model
-            </p>
+            <h1>Dashboard</h1>
+            <p>{companyName} · synthetic manufacturing model</p>
           </div>
-          <button
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
-            onClick={() => navigate("/intelligence")}
-          >
-            Analyze a disruption
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M13 7l5 5m0 0l-5 5m5-5H6"
-              />
-            </svg>
-          </button>
+          <JudgeDemo compact />
         </header>
-        <main className="p-6 space-y-6">
-          <section className="space-y-3">
-            <h2 className="text-3xl font-semibold">
-              Know what will hit your bottom line before it does.
-            </h2>
-            <p className="text-text-secondary">
-              MarginGuard turns external events into traceable financial impact
-              and recommended actions for manufacturers.
-            </p>
-            <p className="text-sm tracking-wide text-primary-300">
-              DETECT → TRACE → QUANTIFY → DECIDE
-            </p>
-            <JudgeDemo />
-          </section>
-          {error && (
-            <p role="alert" className="text-error">
-              {error}
-            </p>
-          )}
-          <label className="flex flex-wrap items-center gap-3 text-sm">
-            Model a disruption
-            <select
-              aria-label="Scenario"
-              disabled={busy}
-              value={snapshot.selectedScenarioId}
-              onChange={(e) => void runScenario(e.target.value)}
-              className="rounded-lg border border-border bg-bg-secondary p-2"
+        <p className="product-promise">
+          Know what will hit your bottom line before it does.
+        </p>
+        {error && (
+          <p role="alert" className="text-error">
+            {error}
+          </p>
+        )}
+        <section className="risk-lead" aria-label="Current financial risk">
+          <div className="risk-context">
+            <span
+              className={
+                report.affectedUnits
+                  ? "severity severity-high"
+                  : "severity severity-clear"
+              }
             >
-              {snapshot.selectedScenarioId === "custom" && (
-                <option value="custom">Custom disruption</option>
-              )}
-              {snapshot.scenarios.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            {busy && <span role="status">Calculating…</span>}
-          </label>
-          {report.affectedUnits === 0 ? (
-            <section className="judge-panel">
-              <h2 className="text-2xl font-semibold">
-                No material exposure detected
-              </h2>
-              <p className="mt-2">{snapshot.event.description}</p>
-              <p className="mt-3 text-success">
-                No action required. No affected supplier, component, or product
-                in the modeled dependencies.
+              {report.affectedUnits
+                ? "High · modeled risk"
+                : "No material exposure"}
+            </span>
+            <span>Synthetic brief · analyzed</span>
+          </div>
+          <h2>
+            {event.type === "irrelevant"
+              ? "Competitor leadership announcement"
+              : snapshot.selectedScenarioId === "custom"
+                ? "Custom supply disruption"
+                : "Freight closure interrupts can deliveries"}
+          </h2>
+          <div className="risk-decision-grid">
+            <div>
+              <p className="eyebrow">Margin at Risk</p>
+              <p className="dashboard-amount">
+                {money(report.contributionMarginAtRiskCents)}
               </p>
+              <p className="text-sm text-text-secondary">
+                Calculated contribution margin · {event.disruptionDays}-day
+                scenario
+              </p>
+              <p className="risk-path">
+                {supplierNames || "No supplier matched"} →{" "}
+                {componentNames || "No component shortage"} →{" "}
+                {report.affectedProducts.length} products
+              </p>
+            </div>
+            <div className="risk-recommendation">
+              <p className="eyebrow">Recommended action</p>
+              <h3>
+                {best.id === "do-nothing"
+                  ? "Take no action"
+                  : "Use alternate supply"}
+              </h3>
+              <p>
+                {best.supplierId
+                  ? snapshot.company.suppliers.find(
+                      (s) => s.id === best.supplierId,
+                    )?.name
+                  : "No recovery spending required."}
+              </p>
+              <p className="benefit">{money(best.netFinancialBenefitCents)}</p>
+              <p className="text-sm">Net benefit versus no action</p>
               <button
-                className="judge-button mt-4"
+                className="judge-button mt-5"
                 onClick={() => navigate("/analysis")}
               >
-                Inspect the analysis
+                View Analysis →
               </button>
-            </section>
-          ) : (
-            <CriticalRiskCard
-              event={currentEvent}
-              scenario={currentScenario}
-              onAnalyze={() => navigate("/analysis")}
-            />
-          )}
-          {loadingSignals ? (
-            <div className="rounded-xl border border-border bg-bg-tertiary p-5 animate-pulse">
-              <div className="h-4 w-40 bg-bg-secondary rounded mb-3" />
-              <div className="h-3 w-64 bg-bg-secondary rounded" />
             </div>
-          ) : signalsError ? (
-            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
-              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
-              <p className="text-xs text-text-secondary">{signalsError}</p>
-            </div>
-          ) : economicSignals.length > 0 ? (
-            <EconomicSignals signals={economicSignals} />
-          ) : (
-            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
-              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
-              <p className="text-xs text-text-secondary">
-                No economic observations are available to assess market
-                movements.
-              </p>
-            </div>
-          )}
-          <section
-            className="grid sm:grid-cols-3 gap-4"
-            aria-label="Financial overview"
-          >
-            {[
-              {
-                label: "Cash change vs. normal month",
-                value: money(report.cashImpactCents),
-              },
-              {
-                label: "Best recovery option saves",
-                value: money(best.netFinancialBenefitCents),
-              },
-              {
-                label: "Product cases affected",
-                value: report.affectedUnits.toLocaleString(),
-              },
-            ].map((metric) => (
-              <div
-                className="rounded-xl border border-border bg-bg-tertiary p-5"
-                key={metric.label}
-              >
-                <p className="text-sm text-text-secondary">{metric.label}</p>
-                <p className="text-2xl font-bold mt-2">{metric.value}</p>
-              </div>
-            ))}
-          </section>
-          <div className="grid lg:grid-cols-2 gap-6">
-            <SupplierExposure suppliers={company.suppliers} />
-            <section className="rounded-xl border border-border bg-bg-tertiary p-5">
-              <h2 className="font-semibold mb-1">Best recovery option</h2>
-              <p className="text-xs text-text-secondary mb-3">
-                If you act on this disruption, here's your best move
-              </p>
-              <p className="text-sm text-text-secondary mb-3">
-                {best.description}
-              </p>
-              <p className="text-2xl text-success">
-                {money(best.netFinancialBenefitCents)}
-              </p>
-              <p className="text-xs text-text-secondary mt-0.5">
-                net financial benefit vs. no action
-              </p>
-              <button
-                className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
-                onClick={() => navigate("/responses")}
-              >
-                Compare response options
-              </button>
-            </section>
           </div>
-          <section className="rounded-xl border border-border bg-bg-tertiary p-5">
-            <h2 className="font-semibold mb-1">
-              Monthly contribution by product
-            </h2>
-            <p className="text-xs text-text-secondary mb-4">
+          <footer className="risk-footer">
+            <span>{report.affectedUnits.toLocaleString()} cases affected</span>
+            <span>{money(report.revenueAtRiskCents)} revenue at risk</span>
+            <button onClick={() => navigate("/scenarios")}>
+              Run another scenario
+            </button>
+          </footer>
+        </section>
+        <nav className="decision-flow" aria-label="Decision flow">
+          {[
+            ["detect", "Detect"],
+            ["trace", "Trace"],
+            ["quantify", "Quantify"],
+            ["decide", "Decide"],
+          ].map(([id, label], i) => (
+            <button key={id} onClick={() => navigate("/analysis#" + id)}>
+              <span>0{i + 1}</span>
+              {label}
+            </button>
+          ))}
+        </nav>
+        <section className="secondary-business">
+          <div>
+            <h2>Business context</h2>
+            <p>Explore the inputs and signals behind the decision.</p>
+          </div>
+          <details>
+            <summary>Economic indicators</summary>
+            {loading ? (
+              <p role="status">Loading observations…</p>
+            ) : signalError ? (
+              <p>{signalError}</p>
+            ) : signals.length ? (
+              <EconomicSignals signals={signals} />
+            ) : (
+              <p>No economic observations are available.</p>
+            )}
+          </details>
+          <details>
+            <summary>Supplier dependencies</summary>
+            <SupplierExposure suppliers={company.suppliers} />
+          </details>
+          <details>
+            <summary>Monthly contribution by product</summary>
+            <p className="text-sm text-text-secondary">
               Sales less variable costs, before fixed costs, interest, and tax.
             </p>
-            <div className="grid sm:grid-cols-3 gap-5">
+            <div className="grid sm:grid-cols-3 gap-6 mt-4">
               {company.products.map((p) => (
                 <div key={p.id}>
                   <h3>{p.name}</h3>
-                  <p className="text-xl font-bold">
-                    {money(p.totalMargin * 100)}
-                  </p>
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-xl">{money(p.totalMargin * 100)}</p>
+                  <p>
                     {p.unitsPerMonth.toLocaleString()} cases ·{" "}
                     {money(p.marginPerUnit * 100)} contribution/case
                   </p>
                 </div>
               ))}
             </div>
-          </section>
-        </main>
-      </div>
+          </details>
+        </section>
+      </main>
     </div>
   );
 }

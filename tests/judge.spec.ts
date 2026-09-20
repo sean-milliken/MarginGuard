@@ -3,6 +3,43 @@ import { EVAL_DATASET } from "../nemotron/src/eval/dataset";
 import { calculateMetrics } from "../nemotron/src/eval/metrics";
 import type { EvalResultItem } from "../nemotron/src/schemas/eval";
 
+test("decision hierarchy, keyboard evidence, and tablet layout stay usable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
+  ).toHaveCount(4);
+  await page.screenshot({ path: "test-results/dashboard-desktop.png" });
+  await page
+    .getByRole("button", { name: "View Analysis →", exact: true })
+    .click();
+  await expect(page.getByTestId("financial-decision")).toBeVisible();
+  const order = await page
+    .locator("#detect, #trace, #quantify, #decide, #stress")
+    .evaluateAll((nodes) => nodes.map((node) => node.id));
+  expect(order).toEqual(["detect", "trace", "quantify", "decide", "stress"]);
+  await expect(page.getByTestId("margin-exposure")).toBeInViewport();
+  await expect(page.getByTestId("net-benefit")).toBeInViewport();
+  await page.screenshot({ path: "test-results/analysis-desktop.png" });
+  const evidence = page
+    .locator("summary")
+    .filter({ hasText: /^Source Evidence$/ });
+  await expect(evidence.locator("..")).not.toHaveAttribute("open");
+  await evidence.focus();
+  await page.keyboard.press("Enter");
+  await expect(evidence.locator("..")).toHaveAttribute("open", "");
+  await page.keyboard.press("Enter");
+  await expect(evidence.locator("..")).not.toHaveAttribute("open");
+  await page.setViewportSize({ width: 820, height: 1180 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "test-results/analysis-tablet.png" });
+});
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/eval-results", (route) =>
     route.fulfill({ status: 404, json: { error: "No local run" } }),
@@ -14,7 +51,7 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.goto("/");
-  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await page.getByRole("button", { name: /Open Dashboard/ }).click();
 });
 
 test("judge demo, what-if boundaries, calculations and repeat runs use actual finance", async ({
@@ -88,8 +125,8 @@ test("judge analysis remains usable on a narrow screen", async ({ page }) => {
 test("irrelevant event is a successful no-exposure result", async ({
   page,
 }) => {
+  await page.getByRole("link", { name: "Scenarios", exact: true }).click();
   await page.getByLabel("Scenario").selectOption("irrelevant-leadership");
-  await page.getByRole("button", { name: /Model Impact/ }).click();
   await expect(page.getByTestId("margin-exposure")).toHaveText(
     "No material exposure detected",
   );
@@ -117,7 +154,7 @@ test("judge demo reports persistence failure and can retry without fabricated su
 test("eval view distinguishes dataset counts from measured results and rejects invalid files", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: /AI Accuracy/ }).click();
+  await page.getByRole("link", { name: "Evals", exact: true }).click();
   await expect(
     page.getByText(/labeled examples in the evaluation dataset/),
   ).toBeVisible();
@@ -133,7 +170,7 @@ test("eval view distinguishes dataset counts from measured results and rejects i
 test("evaluation viewer computes recorded errors instead of trusting supplied percentage claims", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: /AI Accuracy/ }).click();
+  await page.getByRole("link", { name: "Evals", exact: true }).click();
   const item = EVAL_DATASET[0]!;
   const results: EvalResultItem[] = [
     {
@@ -177,6 +214,7 @@ test("evaluation viewer computes recorded errors instead of trusting supplied pe
   await expect(
     page.getByText("Inspect Errors (1)", { exact: true }),
   ).toBeVisible();
+  await page.getByText("Inspect Errors (1)", { exact: true }).click();
   await expect(
     page.getByText("Deliberately incorrect test prediction", { exact: true }),
   ).toBeVisible();

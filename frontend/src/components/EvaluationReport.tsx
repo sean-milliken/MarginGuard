@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { EVAL_DATASET } from "../../../nemotron/src/eval/dataset";
 import {
   EvalResultsSchema,
@@ -19,11 +19,14 @@ function parseResults(raw: unknown): EvalResults {
     new Set(ids).size !== ids.length ||
     ids.some((id) => !EVAL_DATASET.some((item) => item.id === id))
   )
-    throw new Error("Results must contain unique IDs from this evaluation dataset.");
+    throw new Error(
+      "Results must contain unique IDs from this evaluation dataset.",
+    );
   return parsed;
 }
 
 export function EvaluationReport() {
+  const manualUpload = useRef(false);
   const [report, setReport] = useState<EvalResults | null>(null);
   const [error, setError] = useState("");
   const [localRun, setLocalRun] = useState(false);
@@ -32,7 +35,7 @@ export function EvaluationReport() {
     request<unknown>("/eval-results")
       .then((raw) => {
         const parsed = parseResults(raw);
-        if (active) {
+        if (active && !manualUpload.current) {
           setReport(parsed);
           setLocalRun(true);
         }
@@ -72,46 +75,6 @@ export function EvaluationReport() {
         <h2 className="text-xl font-semibold">Nemotron evaluation</h2>
         <p>{EVAL_DATASET.length} labeled examples in the evaluation dataset</p>
       </div>
-      <div className="grid sm:grid-cols-4 gap-3">
-        {Object.entries(distribution).map(([category, count]) => (
-          <div key={category} className="judge-metric">
-            <strong>{count}</strong>
-            <p>{category.replace(/_/g, " ")}</p>
-          </div>
-        ))}
-      </div>
-      <p className="text-sm text-text-secondary">
-        {localRun
-          ? "Loaded the local harness output."
-          : "Load the JSON produced by npm run eval:nemotron."} Metrics are
-        recomputed from recorded predictions and repository labels. No keyword
-        baseline is implemented.
-      </p>
-      <label className="block">
-        Load evaluation results{" "}
-        <input
-          className="block mt-2"
-          type="file"
-          accept=".json,application/json"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setError("");
-            setReport(null);
-            try {
-              if (file.size > 5_000_000)
-                throw new Error("Choose a results file smaller than 5 MB.");
-              const parsed = parseResults(JSON.parse(await file.text()));
-              setReport(parsed);
-              setLocalRun(false);
-            } catch {
-              setError(
-                "Could not load results. Use valid harness JSON with unique IDs from the current dataset (maximum 5 MB).",
-              );
-            }
-          }}
-        />
-      </label>
       {error && <p role="alert">{error}</p>}
       {!report && (
         <p>
@@ -129,12 +92,7 @@ export function EvaluationReport() {
           <div className="grid sm:grid-cols-3 gap-3">
             {[
               ["Classification accuracy", metrics.classificationAccuracy],
-              ["Relevance precision", metrics.relevancePrecision],
-              ["Relevance recall", metrics.relevanceRecall],
               ["Relevance F1", metrics.relevanceF1],
-              ["Entity precision", metrics.entityPrecision],
-              ["Entity recall", metrics.entityRecall],
-              ["Entity F1", metrics.entityF1],
               [
                 "First-attempt schema validity",
                 metrics.structuredOutputValidityRate,
@@ -153,7 +111,24 @@ export function EvaluationReport() {
             Undefined precision/recall is reported as zero. Schema validity is
             before correction.
           </p>
-          <details open>
+          <details>
+            <summary>Additional metrics</summary>
+            <dl className="metric-details">
+              {[
+                ["Relevance precision", metrics.relevancePrecision],
+                ["Relevance recall", metrics.relevanceRecall],
+                ["Entity precision", metrics.entityPrecision],
+                ["Entity recall", metrics.entityRecall],
+                ["Entity F1", metrics.entityF1],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{(Number(value) * 100).toFixed(1)}%</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+          <details>
             <summary>Inspect Errors ({failures.length})</summary>
             {!failures.length && (
               <p>No classification or relevance errors in this loaded run.</p>
@@ -188,6 +163,53 @@ export function EvaluationReport() {
           </details>
         </>
       )}
+      <details open={!report}>
+        <summary>Load evaluation results</summary>{" "}
+        <p className="text-sm text-text-secondary">
+          {localRun
+            ? "Loaded the local harness output."
+            : "Load the JSON produced by npm run eval:nemotron."}{" "}
+          Metrics are recomputed from recorded predictions and repository
+          labels. No keyword baseline is implemented.
+        </p>
+        <label className="block">
+          Load evaluation results{" "}
+          <input
+            className="block mt-2"
+            type="file"
+            accept=".json,application/json"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              manualUpload.current = true;
+              setError("");
+              setReport(null);
+              try {
+                if (file.size > 5_000_000)
+                  throw new Error("Choose a results file smaller than 5 MB.");
+                const parsed = parseResults(JSON.parse(await file.text()));
+                setReport(parsed);
+                setLocalRun(false);
+              } catch {
+                setError(
+                  "Could not load results. Use valid harness JSON with unique IDs from the current dataset (maximum 5 MB).",
+                );
+              }
+            }}
+          />
+        </label>
+      </details>
+      <details>
+        <summary>Dataset distribution</summary>{" "}
+        <div className="grid sm:grid-cols-4 gap-3">
+          {Object.entries(distribution).map(([category, count]) => (
+            <div key={category} className="judge-metric">
+              <strong>{count}</strong>
+              <p>{category.replace(/_/g, " ")}</p>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }
