@@ -11,6 +11,7 @@ import { memoryStore, type AnalysisStore } from "./store";
 import { steelCityBeverages } from "../../financial-engine/src/steel-city-beverages";
 import type { FredService } from "./fred/service";
 import { isFredAvailable } from "./fred/service";
+import type { NewsService } from "./news/types";
 export interface ApiRequest {
   method: string;
   path: string;
@@ -27,10 +28,12 @@ export function createApi(
     analyzer?: Analyzer;
     intelligenceAvailable?: boolean;
     fredService?: FredService;
+    newsService?: NewsService;
   } = {},
 ) {
   const store = options.store ?? memoryStore();
   const fredService = options.fredService;
+  const newsService = options.newsService;
   const reply = (statusCode: number, data: unknown): ApiResponse => ({
     statusCode,
     headers: {
@@ -71,6 +74,19 @@ export function createApi(
       }
       if (method === "GET" && route === "/sources")
         return reply(200, [createSnapshot().source]);
+      if (method === "GET" && route === "/news") {
+        if (!newsService) return reply(200, []);
+        try {
+          const articles = await newsService.getSupplyChainNews();
+          return reply(200, articles);
+        } catch (err) {
+          console.error(
+            "News fetch failed:",
+            err instanceof Error ? err.message : err,
+          );
+          return reply(200, []);
+        }
+      }
       if (method === "GET" && route.startsWith("/analyses/")) {
         const record = await store.get(route.slice("/analyses/".length));
         return record
