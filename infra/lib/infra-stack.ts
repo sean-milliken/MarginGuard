@@ -126,7 +126,7 @@ export class InfraStack extends cdk.Stack {
     const nemotronSecretArn = this.node.tryGetContext("nemotronSecretArn") as
       string | undefined;
     if (nemotronSecretArn) {
-      const secret = secretsmanager.Secret.fromSecretCompleteArn(
+      const secret = secretsmanager.Secret.fromSecretPartialArn(
         this,
         "NemotronSecret",
         nemotronSecretArn,
