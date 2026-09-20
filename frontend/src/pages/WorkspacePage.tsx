@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useData } from "../contexts/DataContext";
+import {
+  getNews,
+  getEconomicSignals,
+  type NewsArticle,
+  type EconomicSignal,
+} from "../lib/api";
 export default function WorkspacePage() {
   const { pathname } = useLocation();
   const { snapshot, busy, error, runScenario, intelligence, analyzeText } =
@@ -13,6 +19,12 @@ export default function WorkspacePage() {
       event.supplierIds[0] ?? company.suppliers[0]!.id,
     );
   const [article, setArticle] = useState(snapshot.source.text);
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [signals, setSignals] = useState<EconomicSignal[]>([]);
+  useEffect(() => {
+    getNews().then(setNews).catch(() => {});
+    getEconomicSignals().then(setSignals).catch(() => {});
+  }, []);
   const money = (cents: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -24,6 +36,16 @@ export default function WorkspacePage() {
     company.products.find((p) => p.id === id)?.name ??
     id;
   const title = pathname.slice(1).replace(/^./, (c) => c.toUpperCase());
+  // "20260919T120000Z" → "Sep 19, 2026"
+  const gdeltDate = (raw: string) => {
+    const m = raw.match(/^(\d{4})(\d{2})(\d{2})/);
+    if (!m) return raw;
+    return new Date(`${m[1]}-${m[2]}-${m[3]}`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
   const panel = "rounded-xl border border-border bg-bg-tertiary p-5 space-y-3";
   const input = "rounded-lg border border-border bg-bg-secondary p-2";
   return (
@@ -194,6 +216,45 @@ export default function WorkspacePage() {
         )}
         {pathname === "/intelligence" && (
           <>
+            {news.length > 0 && (
+              <section className={panel}>
+                <h2 className="font-semibold">Recent news headlines</h2>
+                <p className="text-xs text-text-tertiary">
+                  Select an article to pre-load its headline into the source
+                  text field below, then add the full article body for analysis.
+                </p>
+                <ul className="space-y-2">
+                  {news.map((a) => (
+                    <li key={a.url} className="flex items-start gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setArticle(
+                            `${a.title}\n\nSource: ${a.domain}\nURL: ${a.url}\n\n[Paste article text here]`,
+                          )
+                        }
+                        className="shrink-0 rounded border border-border bg-bg-secondary px-2 py-0.5 text-xs hover:bg-bg-hover"
+                      >
+                        Use
+                      </button>
+                      <div>
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary-300 hover:underline leading-snug"
+                        >
+                          {a.title}
+                        </a>
+                        <p className="text-xs text-text-tertiary">
+                          {a.domain} · {gdeltDate(a.seendate)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <form
               className={panel}
               onSubmit={(e) => {
@@ -280,17 +341,92 @@ export default function WorkspacePage() {
           </>
         )}
         {pathname === "/sources" && (
-          <section className={panel}>
-            <h2>{snapshot.source.title}</h2>
-            <p className="text-warning">
-              Synthetic scenario; not a live news feed.
-            </p>
-            <p className="whitespace-pre-wrap">{snapshot.source.text}</p>
-            <p>
-              Use the Intelligence page to submit another article for
-              qualitative analysis.
-            </p>
-          </section>
+          <>
+            <section className={panel}>
+              <h2 className="font-semibold">Scenario source article</h2>
+              <p className="text-xs text-warning">
+                Synthetic scenario · not a live news feed
+              </p>
+              <p className="font-medium">{snapshot.source.title}</p>
+              <p className="whitespace-pre-wrap text-sm text-text-secondary">
+                {snapshot.source.text}
+              </p>
+            </section>
+
+            {news.length > 0 && (
+              <section className={panel}>
+                <h2 className="font-semibold">Live news · supply chain</h2>
+                <p className="text-xs text-text-tertiary">
+                  Via GDELT · updates every 5 minutes
+                </p>
+                <ul className="space-y-3">
+                  {news.map((article) => (
+                    <li key={article.url} className="flex flex-col gap-0.5">
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-300 hover:underline text-sm font-medium leading-snug"
+                      >
+                        {article.title}
+                      </a>
+                      <span className="text-xs text-text-tertiary">
+                        {article.domain} ·{" "}
+                        {gdeltDate(article.seendate)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {signals.length > 0 && (
+              <section className={panel}>
+                <h2 className="font-semibold">Economic indicators · FRED</h2>
+                <p className="text-xs text-text-tertiary">
+                  St. Louis Fed · supply chain relevant series
+                </p>
+                <ul className="space-y-3">
+                  {signals.map((sig) => (
+                    <li key={sig.id} className="flex items-start justify-between gap-4">
+                      <div>
+                        <a
+                          href={sig.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-primary-300 hover:underline"
+                        >
+                          {sig.seriesName}
+                        </a>
+                        <p className="text-xs text-text-secondary mt-0.5">
+                          {sig.description} · {sig.date}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold shrink-0 ${
+                          sig.severity === "critical"
+                            ? "text-error"
+                            : sig.severity === "high"
+                              ? "text-warning"
+                              : "text-text-secondary"
+                        }`}
+                      >
+                        {sig.percentageChange > 0 ? "+" : ""}
+                        {sig.percentageChange.toFixed(1)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {news.length === 0 && signals.length === 0 && (
+              <p className="text-sm text-text-secondary">
+                Live news and economic indicators load when the backend is
+                reachable. Configure FRED_API_KEY to enable economic signals.
+              </p>
+            )}
+          </>
         )}
         {pathname === "/company" && (
           <>
