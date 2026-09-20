@@ -83,7 +83,7 @@ export const CriticalRiskCard: React.FC<CriticalRiskCardProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-error">
-                      Scenario Exposure
+                      Disruption Alert
                     </span>
                     <span className="relative inline-flex h-2 w-2">
                       <motion.span
@@ -131,7 +131,7 @@ export const CriticalRiskCard: React.FC<CriticalRiskCardProps> = ({
                 }}
               >
                 <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">
-                  Margin at Risk
+                  Profit at risk
                 </p>
                 <AnimatedNumber
                   value={scenario.financialImpact.marginAtRisk}
@@ -149,7 +149,7 @@ export const CriticalRiskCard: React.FC<CriticalRiskCardProps> = ({
                 }}
               >
                 <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">
-                  Revenue Exposed
+                  Sales at risk
                 </p>
                 <AnimatedNumber
                   value={scenario.financialImpact.revenueAtRisk}
@@ -167,7 +167,7 @@ export const CriticalRiskCard: React.FC<CriticalRiskCardProps> = ({
                 }}
               >
                 <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">
-                  Time Horizon
+                  Duration
                 </p>
                 <div className="flex items-baseline gap-1">
                   <AnimatedNumber

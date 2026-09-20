@@ -2,18 +2,21 @@
 set -euo pipefail
 
 #
-# deploy-infra.sh - Deploy CDK infrastructure to AWS
+# deploy-infra.sh - Deploy CDK infrastructure and frontend to AWS
 #
 # Usage: npm run deploy [options]
 #
 # Options:
 #   --skip-bootstrap          Skip the CDK bootstrap step
+#   --skip-frontend           Skip Amplify frontend deployment
 #   --require-approval LEVEL  Approval level for CDK deploy (never/any-change/broadening)
 #   --help                    Show this help message
 #
 
 # Configuration
 DEFAULT_APPROVAL="broadening"
+STACK_NAME="MarginGuardStack"
+export AWS_PROFILE="${AWS_PROFILE:-default}"
 
 # Color output helpers
 print_info() {
@@ -50,12 +53,14 @@ Options:
   --skip-bootstrap          Skip the CDK bootstrap step (for subsequent deploys)
   --require-approval LEVEL  Approval level for CDK deploy (default: broadening)
                             Values: never, any-change, broadening
+  --skip-frontend           Skip Amplify frontend deployment
   --help                    Show this help message
 
 Examples:
   npm run deploy                              # Full deployment with bootstrap
   npm run deploy -- --skip-bootstrap          # Deploy without bootstrap
   npm run deploy -- --require-approval never  # Deploy without approval prompts
+  npm run deploy -- --skip-frontend           # Skip frontend Amplify deploy
 EOF
     exit 0
 }
@@ -140,14 +145,119 @@ bootstrap_cdk() {
 # Deploy CDK
 deploy_cdk() {
     local approval_level="$1"
-    print_info "Deploying CDK stack (require-approval: $approval_level)..."
-    npx cdk deploy --require-approval "$approval_level"
+    print_info "Deploying CDK stack '$STACK_NAME' (require-approval: $approval_level)..."
+    npx cdk deploy "$STACK_NAME" \
+        --require-approval "$approval_level" \
+        --context nemotronSecretArn=arn:aws:secretsmanager:us-east-1:620214493475:secret:marginguard/nvidia-api-key-XEJViB
     print_success "CDK deployment complete"
+}
+
+# Deploy frontend to Amplify via manual zip deployment
+deploy_frontend() {
+    print_info "Deploying frontend to Amplify..."
+
+    local app_id
+    app_id=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --query 'Stacks[0].Outputs[?OutputKey==`AmplifyAppId`].OutputValue' \
+        --output text)
+
+    if [[ -z "$app_id" ]]; then
+        print_error "Could not retrieve Amplify App ID from stack outputs."
+        exit 1
+    fi
+
+    print_info "Amplify App ID: $app_id"
+
+    # Create main branch if it doesn't exist
+    if ! aws amplify get-branch --app-id "$app_id" --branch-name main &>/dev/null; then
+        print_info "Creating Amplify branch 'main'..."
+        aws amplify create-branch --app-id "$app_id" --branch-name main
+    fi
+
+    # Write VITE_ env vars from stack outputs so Vite bakes them into the bundle
+    print_info "Writing frontend environment variables from stack outputs..."
+    local api_url user_pool_id user_pool_client_id region
+    api_url=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+        --output text)
+    user_pool_id=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+        --output text)
+    user_pool_client_id=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+        --output text)
+    region=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --query 'Stacks[0].Outputs[?OutputKey==`CognitoRegion`].OutputValue' \
+        --output text)
+
+    cat > ../frontend/.env <<EOF
+VITE_MOCK_MODE=false
+VITE_USER_POOL_ID=${user_pool_id}
+VITE_USER_POOL_CLIENT_ID=${user_pool_client_id}
+VITE_AWS_REGION=${region}
+VITE_API_URL=${api_url}
+EOF
+    print_success "frontend/.env written"
+
+    # Build frontend dist
+    print_info "Building frontend..."
+    npm run build -w frontend
+
+    # Zip the dist folder
+    local zip_path="/tmp/marginguard-frontend.zip"
+    (cd ../frontend/dist && zip -qr "$zip_path" .)
+    print_success "Frontend zipped: $zip_path"
+
+    # Create deployment and get presigned URL
+    local deploy_response
+    deploy_response=$(aws amplify create-deployment \
+        --app-id "$app_id" \
+        --branch-name main)
+
+    local job_id zip_url
+    job_id=$(echo "$deploy_response" | jq -r '.jobId')
+    zip_url=$(echo "$deploy_response" | jq -r '.zipUploadUrl')
+
+    # Upload zip to presigned S3 URL
+    print_info "Uploading frontend bundle..."
+    curl -sS -T "$zip_path" "$zip_url"
+
+    # Start the deployment
+    aws amplify start-deployment \
+        --app-id "$app_id" \
+        --branch-name main \
+        --job-id "$job_id" > /dev/null
+
+    print_info "Waiting for Amplify deployment to complete (job: $job_id)..."
+    local status="PENDING"
+    while [[ "$status" == "PENDING" || "$status" == "RUNNING" ]]; do
+        sleep 10
+        status=$(aws amplify get-job \
+            --app-id "$app_id" \
+            --branch-name main \
+            --job-id "$job_id" \
+            --query 'job.summary.status' \
+            --output text)
+        print_info "  Status: $status"
+    done
+
+    if [[ "$status" == "SUCCEED" ]]; then
+        print_success "Frontend deployed: https://main.$app_id.amplifyapp.com"
+    else
+        print_error "Amplify deployment failed with status: $status"
+        exit 1
+    fi
 }
 
 # Main function
 main() {
     local skip_bootstrap=false
+    local skip_frontend=false
     local require_approval="$DEFAULT_APPROVAL"
 
     # Parse arguments
@@ -155,6 +265,10 @@ main() {
         case "$1" in
             --skip-bootstrap)
                 skip_bootstrap=true
+                shift
+                ;;
+            --skip-frontend)
+                skip_frontend=true
                 shift
                 ;;
             --require-approval)
@@ -217,9 +331,18 @@ main() {
     deploy_cdk "$require_approval"
     echo ""
 
+    # Deploy frontend to Amplify
+    if [[ "$skip_frontend" == false ]]; then
+        deploy_frontend
+        echo ""
+    else
+        print_info "Skipping frontend deployment (--skip-frontend flag)"
+        echo ""
+    fi
+
     # Final success message
     echo "=================================="
-    print_success "Infrastructure deployment complete!"
+    print_success "MarginGuard deployment complete!"
     echo "=================================="
     echo ""
     echo "Next steps:"

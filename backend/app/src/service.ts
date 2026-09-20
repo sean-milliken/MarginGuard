@@ -171,7 +171,7 @@ export type Analyzer = (input: AnalysisInput) => Promise<AnalysisOutcome>;
 export async function classifyArticle(
   raw: unknown,
   analyzer: Analyzer = (input) =>
-    analyzeArticle(input, { timeoutMs: 10000, maxAttempts: 1 }),
+    analyzeArticle(input, { timeoutMs: 25000, maxAttempts: 1 }),
 ): Promise<AnalysisOutcome> {
   const input = intelligenceRequestSchema.parse(raw);
   const snapshot = createSnapshot(input.analysis ?? {});
