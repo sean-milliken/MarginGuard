@@ -1,11 +1,14 @@
-> **Integrated application:** See [INTEGRATION.md](INTEGRATION.md) for the current local launch, API contract, demo walkthrough, and AWS integration. Run `npm ci` then `npm run dev` from the repository root.
+# MarginGuard
 
-# README Template for CIC Projects
+> **Financial Risk Intelligence for Supply Chain Disruptions**
+
+**Hackathon Tracks:** Beyond the Chatbot • Compound • Xtract • Seed Round
+
+---
 
 | Index                         | Description                                         |
 |:------------------------------|:----------------------------------------------------|
 | [Overview](#overview)         | See what this project does and its key capabilities |
-| [Demo](#demo)                 | View the demo video                                 |
 | [Description](#description)   | Learn about the problem and our approach            |
 | [Architecture](#architecture) | View the system architecture diagram                |
 | [Tech Stack](#tech-stack)     | Technologies and services used                      |
@@ -20,36 +23,15 @@
 
 # Overview
 
-Write 2–3 sentences describing what the project does and who it is built for. Follow with a bullet list of 3–5 key
-capabilities.
-
-Use this structure:
-
-> **[Project Name]** is a [short description of the tool/platform — e.g., "serverless AI-powered analytics platform"]
-> designed to help [target user/organization] [achieve what goal]. The solution leverages [key technologies]
-> to [core value proposition].
+> **MarginGuard** is a serverless financial risk intelligence platform designed to help procurement and finance teams quantify the financial impact of supply chain disruptions. The solution combines real-time economic signals from FRED (Federal Reserve Economic Data) with deterministic financial modeling to provide transparent, verifiable impact assessments without relying on opaque AI predictions.
 
 **Key capabilities include:**
 
-- **[Capability 1 Name]**: Brief description of what it does
-- **[Capability 2 Name]**: Brief description of what it does
-- **[Capability 3 Name]**: Brief description of what it does
-- *(Add more as needed)*
-
-> **Tip:** If the solution is domain-specific but reusable, add a note at the end explaining how others can adapt it for
-> their own use case.
-
----
-
-# Demo
-
-Embed a demo video of the working application here. Upload the video as a GitHub asset and paste the generated link.
-
-```
-https://github.com/[org]/[repo]/assets/[asset-id]
-```
-
-> If a live demo or recorded walkthrough is not available yet, note it as "Coming soon" and update before publishing.
+- **Real-Time Economic Monitoring**: Tracks commodity prices (aluminum, corrugated packaging, energy) from FRED API and automatically calculates financial exposure based on component costs and production volumes
+- **Deterministic Financial Impact Engine**: BigInt-based calculations trace every dollar from raw material price changes through supplier contracts to product-level margin impact—zero hallucination risk
+- **Scenario Planning & Response Options**: Pre-configured supply chain disruption scenarios (supplier failures, logistics delays, demand shocks) with calculated response strategies and net financial benefits
+- **Source-Transparent Intelligence**: Every data point links to its original source (FRED series, financial inputs, calculation steps)—built for auditability and CFO trust
+- **Multi-Event Analysis Pipeline**: Supports AI-powered article classification (via NVIDIA Nemotron) to extract supply chain events from news sources, with human-in-the-loop validation
 
 ---
 
@@ -57,80 +39,150 @@ https://github.com/[org]/[repo]/assets/[asset-id]
 
 ## Problem Statement
 
-Describe the real-world problem the project solves. Cover:
-
-- What challenge does the target organization or user face?
-- Why is the current/manual approach insufficient?
-- What is the consequence of not solving this problem (e.g., missed insights, wasted time, revenue impact)?
-
-Keep this to 2–4 sentences. Be specific and avoid generic statements.
+When a supply chain disruption hits—a supplier failure, commodity price spike, or logistics breakdown—procurement and finance teams face an immediate question: **What's the financial impact, and what should we do about it?** Traditional approaches rely on manual spreadsheet modeling (slow, error-prone) or opaque AI predictions (unverifiable, risky for CFO sign-off). Neither approach provides the speed, transparency, and precision needed for real-time decision-making under pressure.
 
 ## Our Approach
 
-Explain how the project solves the problem. Break it down into 2–4 named subsections, each covering a distinct aspect of
-your solution. For each subsection, describe:
+### Deterministic Financial Engine
 
-- What the component/feature does
-- Which technologies or AWS services power it
-- Why this approach was chosen over alternatives (if relevant)
+MarginGuard's core is a **BigInt-based financial calculation engine** that models supply chains as directed graphs—suppliers provide components at contracted prices, components combine into products with known margins, and disruptions propagate deterministically through the graph. Every calculation is explicit:
 
-Use bold headers for each subsection. Example subsections:
+- **Cost changes** flow from external data sources (FRED commodity prices) → supplier component costs → product unit economics
+- **Scenario impacts** model supplier unavailability, lead time delays, and demand shocks as graph transformations with precise unit and dollar effects
+- **Response options** (alternative suppliers, price adjustments, production cuts) are pre-calculated with transparent trade-offs (cost vs. margin vs. units affected)
 
-- **[Core Pipeline Name]** — e.g., the data processing or ingestion flow
-- **[AI/Agent Architecture]** — the LLM or AI component and its role
-- **[Infrastructure Approach]** — e.g., serverless, event-driven, async processing
-- **[User Interface]** — the frontend framework and key UX decisions
+All calculations use **BigInt arithmetic** to eliminate floating-point drift—critical for financial accuracy at scale.
 
-## Testing & Validation
+**Technologies:** TypeScript, Custom financial modeling library
 
-> **Note:** Include this section if your project involves a component that required empirical validation or threshold
-> tuning — for example, embedding similarity thresholds, model output evaluation, latency benchmarks, or classification
-> accuracy. If not applicable, remove this section.
+### Real-Time Economic Signals (FRED Integration)
 
-Describe the testing methodology used to validate a key technical decision. Include:
+MarginGuard continuously monitors **Federal Reserve Economic Data (FRED)** for commodity price changes that affect modeled supply chains:
 
-- What was being tested and why
-- How testing was conducted (e.g., sample queries, labeled data, A/B comparison)
-- What the results showed and what threshold/value was selected as a result
+- **Aluminum PPI** (PCU331315331315) → aluminum can costs
+- **Corrugated boxes PPI** (PCU322121322121) → packaging costs
+- **Industrial electricity PPI** (WPU01170301) → energy exposure
+- **All commodities PPI** (PPIACO) → general inflation indicator
 
-Add supporting visuals (screenshots, charts, result tables) if available:
+Each signal is **deterministically calculated** (percentage change, severity level, direction) and linked to affected components via a configuration-driven mapping. Financial impact is calculated by:
+1. Projecting new component costs from commodity price changes
+2. Calculating monthly volume exposure (units × components per unit)
+3. Propagating cost changes to product-level margin impact
 
-```markdown
-<img src="docs/[your-image].png" alt="[Description]" width="800">
-```
+**DynamoDB caching** (7-day TTL) reduces API calls while maintaining freshness.
+
+**Technologies:** AWS Secrets Manager (API key storage), DynamoDB (observation cache), FRED API client with retry/timeout logic
+
+### AI-Powered Intelligence Extraction (Optional)
+
+For teams ingesting supply chain news or reports, MarginGuard supports **AI-powered article classification** via NVIDIA Nemotron:
+
+- **Extract structured events** (supplier name, component, disruption type, severity) from unstructured text
+- **Deterministic validation**: AI outputs are treated as **suggestions**, not facts—users validate extracted events before financial calculations run
+- **Source linking**: Every analysis references the original article (stored in S3) for auditability
+
+This component is **optional**—MarginGuard's core financial engine operates independently of AI and can be driven entirely by manual scenario inputs or external data feeds.
+
+**Technologies:** NVIDIA Nemotron (LLM), AWS Lambda (async processing), S3 (document storage), DynamoDB (analysis results)
+
+### Serverless AWS Infrastructure
+
+MarginGuard is deployed entirely on **AWS serverless services** for scalability and cost efficiency:
+
+- **AWS Lambda** handles all backend logic (API, FRED ingestion, AI analysis)
+- **DynamoDB** stores analyses, economic observations, and cached calculations
+- **API Gateway (HTTP API)** with Cognito JWT authorization
+- **S3** stores uploaded source documents
+- **CDK** (Infrastructure as Code) for reproducible deployments
+
+The architecture is **event-driven**: FRED data refreshes trigger signal recalculations, article uploads trigger async AI analysis, scenario runs trigger financial engine execution—all without managing servers.
+
+### Modern React Frontend
+
+The dashboard provides:
+- **Economic Signals** section showing real-time FRED indicators with severity badges and expandable financial impact details
+- **Critical Risk Card** summarizing current disruption scenario and affected units/cash
+- **Supplier Exposure** visualization showing dependency concentration
+- **Response Comparison** cards with net benefit calculations
+- **3D interactive background** (Three.js) for visual polish
+
+Built with **React**, **TypeScript**, **Tailwind CSS**, and **Framer Motion** for animations.
 
 ---
 
 # Architecture
 
-Add an architecture diagram image showing how all AWS services and components interact.
+MarginGuard follows a serverless event-driven architecture on AWS:
 
-```markdown
-<img src="docs/architecture-diagram.[png/jpeg]" alt="[Project Name] Architecture Diagram" width="800">
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend (React)                         │
+│  - Economic Signals Dashboard - Scenario Planning - Auth (Cognito)│
+└────────────────────────┬────────────────────────────────────────┘
+                         │ HTTPS
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              API Gateway (HTTP API + Cognito Auth)               │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      AWS Lambda (Application)                    │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐│
+│  │ FRED Service     │  │ Financial Engine │  │ AI Analysis    ││
+│  │ - Cache check    │  │ - Scenario calc  │  │ (Optional)     ││
+│  │ - API fetch      │  │ - Impact models  │  │ - Nemotron LLM ││
+│  │ - Signal detect  │  │ - Response opts  │  │ - Extraction   ││
+│  └──────────────────┘  └──────────────────┘  └────────────────┘│
+└────┬────────────┬────────────┬────────────────────┬─────────────┘
+     │            │            │                    │
+     ▼            ▼            ▼                    ▼
+┌─────────┐ ┌──────────┐ ┌──────────┐      ┌──────────────┐
+│DynamoDB │ │DynamoDB  │ │   S3     │      │Secrets Manager│
+│Economic │ │Analyses  │ │ Source   │      │- FRED API Key │
+│  Data   │ │ Table    │ │Documents │      │- NVIDIA Key   │
+└─────────┘ └──────────┘ └──────────┘      └──────────────┘
+     ▲
+     │ Cached observations (7-day TTL)
+     │
+┌─────────────────────┐
+│  FRED API           │
+│  (Federal Reserve)  │
+└─────────────────────┘
 ```
 
-Save the diagram image inside a `docs/` folder in the repository. The diagram should clearly show:
-
-- All AWS services used and how data flows between them
-- The frontend, backend, and any external integrations
-- Async or event-driven flows if applicable
+**Data Flow:**
+1. User logs in via Cognito, accesses React dashboard
+2. Dashboard fetches `/fred/signals` to display economic indicators
+3. Lambda checks DynamoDB cache → fetches from FRED API if stale → calculates signals → stores in cache
+4. User selects scenario → Lambda runs financial engine → returns impact + response options
+5. (Optional) User uploads article → Lambda invokes Nemotron → extracts event → user validates → runs scenario
 
 ---
 
 # Tech Stack
 
-Use a table to list all technologies and services. Group them into logical categories (e.g., AWS, Backend, Frontend).
-
-| Category                      | Technology                                        | Purpose                               |
-|:------------------------------|:--------------------------------------------------|:--------------------------------------|
-| **Amazon Web Services (AWS)** | [Service Name + link](https://aws.amazon.com/...) | What this service does in the project |
-|                               | [Service Name + link](https://aws.amazon.com/...) | What this service does in the project |
-| **Backend**                   | [Library/Language + link](https://...)            | What it is used for                   |
-|                               | [Library/Language + link](https://...)            | What it is used for                   |
-| **Frontend**                  | [Framework + link](https://...)                   | What it is used for                   |
-|                               | [Library + link](https://...)                     | What it is used for                   |
-
-> **Tip:** Link every technology name to its official documentation or product page.
+| Category                      | Technology                                                                                | Purpose                                            |
+|:------------------------------|:------------------------------------------------------------------------------------------|:---------------------------------------------------|
+| **Amazon Web Services (AWS)** | [Lambda](https://aws.amazon.com/lambda/)                                                  | Serverless backend compute                         |
+|                               | [DynamoDB](https://aws.amazon.com/dynamodb/)                                              | NoSQL database for analyses and economic data      |
+|                               | [API Gateway](https://aws.amazon.com/api-gateway/)                                        | HTTP API with Cognito JWT authorization            |
+|                               | [Cognito](https://aws.amazon.com/cognito/)                                                | User authentication and authorization              |
+|                               | [S3](https://aws.amazon.com/s3/)                                                          | Document storage for uploaded articles             |
+|                               | [Secrets Manager](https://aws.amazon.com/secrets-manager/)                                | Secure storage for FRED and NVIDIA API keys        |
+|                               | [CDK](https://aws.amazon.com/cdk/)                                                        | Infrastructure as Code                             |
+| **Backend**                   | [TypeScript](https://www.typescriptlang.org/)                                             | Type-safe backend logic                            |
+|                               | [esbuild](https://esbuild.github.io/)                                                     | Lambda bundler                                     |
+|                               | [Zod](https://zod.dev/)                                                                   | Runtime schema validation                          |
+|                               | [FRED API](https://fred.stlouisfed.org/docs/api/fred/)                                    | Federal Reserve Economic Data                      |
+| **AI (Optional)**             | [NVIDIA Nemotron](https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct)        | LLM for supply chain event extraction              |
+| **Frontend**                  | [React](https://react.dev/)                                                               | UI framework                                       |
+|                               | [TypeScript](https://www.typescriptlang.org/)                                             | Type-safe frontend logic                           |
+|                               | [Vite](https://vite.dev/)                                                                 | Build tool and dev server                          |
+|                               | [Tailwind CSS](https://tailwindcss.com/)                                                  | Utility-first styling                              |
+|                               | [Framer Motion](https://www.framer.com/motion/)                                           | Animations                                         |
+|                               | [Three.js](https://threejs.org/)                                                          | 3D background effects                              |
+| **Financial Engine**          | [Custom TypeScript Library](./financial-engine/)                                          | Deterministic supply chain graph modeling          |
 
 ---
 
@@ -138,23 +190,17 @@ Use a table to list all technologies and services. Group them into logical categ
 
 ## Prerequisites
 
-List everything the user needs installed or configured before they can deploy. Number each item and link to installation
-guides where possible. Common prerequisites:
-
 1. An [AWS account](https://signin.aws.amazon.com/signup?request_type=register)
-2. **Node.js** (specify version) — [Download here](https://nodejs.org/) or use [nvm](https://github.com/nvm-sh/nvm)
-3. **AWS CDK** (specify version) — install via:
+2. **Node.js v20+** — [Download here](https://nodejs.org/) or use [nvm](https://github.com/nvm-sh/nvm)
+3. **AWS CDK v2.270+** — install via:
    ```bash
-   npm install -g aws-cdk
+   npm install -g aws-cdk@latest
    ```
 4. **AWS CLI** — [Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-5. **Docker** — [Download here](https://www.docker.com/get-started/)
-6. **Git** — [Download here](https://git-scm.com/)
-7. *(Add any project-specific prerequisites)*
+5. **FRED API Key** (free) — [Get yours here](https://fred.stlouisfed.org/docs/api/api_key.html)
+6. **NVIDIA API Key** (optional, for AI features) — [Get yours here](https://build.nvidia.com/)
 
 ## AWS Configuration
-
-Provide the AWS CLI setup steps that must be done before deployment:
 
 1. **Configure AWS credentials:**
    ```bash
@@ -163,79 +209,175 @@ Provide the AWS CLI setup steps that must be done before deployment:
 
 2. **Bootstrap CDK** *(required once per AWS account/region):*
    ```bash
-   cdk bootstrap aws://ACCOUNT_ID/REGION
+   cdk bootstrap aws://YOUR_ACCOUNT_ID/us-east-1
    ```
 
-## Quick Start (Recommended)
+## Quick Start
 
-Provide the fastest path to a working deployment. If you have a deploy script, walk through it step by step:
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/[org]/[repo].git
-   cd [repo]
-   ```
-
-2. **Run the deploy script:**
-   ```bash
-   chmod +x ./deploy.sh
-   ./deploy.sh
-   ```
-
-3. **Select the appropriate option** from the menu (e.g., option 1 for full deployment).
-
-Briefly describe what the script handles (e.g., infrastructure provisioning, frontend build, data upload).
-
-<details>
-<summary><strong>Manual Deployment Steps</strong></summary>
-
-### Backend Deployment
-
-Step-by-step instructions for manually deploying the backend infrastructure using CDK:
+### 1. Clone the repository
 
 ```bash
-cd infrastructure
-npm install
-npx cdk deploy
+git clone https://github.com/your-org/marginguard.git
+cd marginguard
 ```
 
-Mention any important CDK outputs the user will need for the next step.
+### 2. Install dependencies
 
-### Frontend Deployment
+```bash
+npm install
+```
 
-Step-by-step instructions for building and deploying the frontend. Note any environment variables that need to be pulled
-from CDK outputs.
+### 3. Create FRED API secret in AWS
 
-</details>
+```bash
+aws secretsmanager create-secret \
+  --name marginguard-fred-api-key \
+  --secret-string '{"FRED_API_KEY":"your-fred-api-key-here"}' \
+  --description "FRED API key for MarginGuard economic data"
+```
 
-## Local Development
+Replace `your-fred-api-key-here` with your actual FRED API key.
 
-Instructions for running the frontend (or backend) locally for development purposes:
+### 4. Build backend
+
+```bash
+cd backend/app
+npm install
+npm run build
+cd ../..
+```
+
+### 5. Deploy infrastructure with CDK
+
+```bash
+cd infra
+npm install
+cdk deploy --context fredSecretArn=arn:aws:secretsmanager:us-east-1:YOUR_ACCOUNT_ID:secret:marginguard-fred-api-key
+```
+
+**Note the API Gateway URL and Cognito User Pool details from the CDK output—you'll need these for the frontend.**
+
+### 6. Configure frontend environment
+
+Create `frontend/.env.local`:
+
+```bash
+VITE_API_URL=https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com
+VITE_USER_POOL_ID=us-east-1_XXXXXXXXX
+VITE_USER_POOL_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXX
+VITE_USER_POOL_DOMAIN=YOUR_DOMAIN.auth.us-east-1.amazoncognito.com
+```
+
+Replace the values with your CDK outputs.
+
+### 7. Deploy frontend
 
 ```bash
 cd frontend
 npm install
+npm run build
+# Deploy dist/ folder to S3 + CloudFront, or run locally:
 npm run dev
 ```
+
+## Local Development
+
+For local development without deploying to AWS:
+
+1. **Create `.env` in project root:**
+   ```bash
+   FRED_API_KEY=your-fred-api-key
+   NVIDIA_API_KEY=your-nvidia-key  # optional
+   PORT=3001
+   HOST=127.0.0.1
+   ```
+
+2. **Run backend and frontend:**
+   ```bash
+   npm run dev
+   ```
+   This starts both the backend API (port 3001) and frontend (port 5173).
+
+3. **Access the app at:** `http://localhost:5173`
+
+**Note:** Local mode uses mock authentication and in-memory storage.
 
 ---
 
 # Usage
 
-Walk through how a user actually uses the deployed application. Number each step in the typical user journey:
+## 1. Access the Application
 
-1. **Access the Application** — How to find the app URL after deployment (e.g., from deploy script output or CDK
-   outputs)
-2. **User Registration / Login** — How user accounts are created and how to log in for the first time. Include both the
-   recommended script-based method and manual CLI/Console alternatives inside a `<details>` block.
-3. **Upload or Prepare Data** — How to load data into the system (e.g., uploading a CSV to S3). Specify any required
-   file format, column names, or validation rules in a table.
-4. **Core Action** — How to use the main feature of the application (e.g., submitting a query, running an analysis,
-   triggering a job).
-5. **View / Export Results** — What output the user receives and how to download or export it.
+After deployment, navigate to the frontend URL (from CDK outputs or your local dev server at `http://localhost:5173`).
 
-> Add screenshots if helpful. For any step with multiple methods (script vs. CLI vs. console), use `<details>` blocks to
-> keep the main flow clean.
+## 2. Create User Account
+
+**Via AWS Console (for first user):**
+
+<details>
+<summary>Manual user creation steps</summary>
+
+1. Open AWS Console → Cognito → User Pools
+2. Select your MarginGuard user pool
+3. Go to "Users" → "Create user"
+4. Set username, temporary password, and email
+5. User will be prompted to change password on first login
+
+</details>
+
+**Via AWS CLI:**
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username yourname \
+  --user-attributes Name=email,Value=you@example.com Name=given_name,Value=Your Name=family_name,Value=Name \
+  --temporary-password TempPassword123!
+```
+
+## 3. Log In and Explore Dashboard
+
+1. Log in with your credentials (you'll be prompted to change the temporary password)
+2. **Dashboard** loads with:
+   - **Economic Indicators** section showing current FRED commodity price signals
+   - **Critical Risk Card** showing the active supply chain scenario
+   - **Financial Overview** metrics (cash impact, affected units, best response)
+   - **Supplier Exposure** chart
+   - **Monthly Product Contribution** breakdown
+
+## 4. View Economic Signal Details
+
+1. In the **Economic Indicators** section, click **"View financial impact"** on any signal
+2. See:
+   - Component mapping (e.g., aluminum price → aluminum cans → Foundry Cola)
+   - Monthly dollar impact per product
+   - Calculation steps for transparency
+3. Click the **FRED source link** to verify data at fred.stlouisfed.org
+
+## 5. Run Supply Chain Scenarios
+
+1. Use the **Scenario dropdown** at the top to select a disruption:
+   - Supplier failure (e.g., Metro Aluminum unavailable)
+   - Logistics delays
+   - Demand shocks
+2. View calculated impacts:
+   - Cash impact (monthly revenue loss)
+   - Affected units
+   - Supplier exposure changes
+3. Navigate to **"Compare response options"** to see:
+   - Switch to alternative supplier (cost increase, timeline)
+   - Adjust pricing (margin impact, demand elasticity)
+   - Reduce production (cost savings, lost revenue)
+
+## 6. (Optional) Upload Articles for AI Analysis
+
+If NVIDIA API key is configured:
+
+1. Navigate to **Intelligence** page
+2. Upload a supply chain news article (PDF/text)
+3. AI extracts structured event data (supplier, component, disruption type)
+4. Validate extracted data
+5. Run scenario based on extracted event
 
 ---
 
@@ -243,98 +385,60 @@ Walk through how a user actually uses the deployed application. Number each step
 
 ## Estimated Monthly Recurring Costs
 
-Provide a table of all AWS services used and their estimated monthly cost at baseline (no or low usage). Use `~$0`,
-`<$1`, or ranges as appropriate. Include a total row.
+| Service              | Estimated Cost | Notes                                                    |
+|:---------------------|---------------:|:---------------------------------------------------------|
+| Lambda               |           ~$0  | Free tier covers 1M requests/month + 400K GB-seconds    |
+| DynamoDB             |            <$1 | On-demand pricing, ~1K reads/writes per day baseline     |
+| API Gateway          |           ~$0  | Free tier covers 1M requests/month                       |
+| Cognito              |           ~$0  | Free tier covers 50K MAUs                                |
+| S3                   |           ~$0  | <1GB storage for documents                               |
+| Secrets Manager      |       $0.40    | $0.40/secret/month                                       |
+| **Total Baseline**   |   **~$1/month**| **Excluding variable AI and FRED costs**                 |
 
-| Service            |  Estimated Cost | Notes                                                  |
-|:-------------------|----------------:|:-------------------------------------------------------|
-| [Service 1]        |             ~$0 | Reason (e.g., free tier)                               |
-| [Service 2]        |             <$1 | Reason (e.g., pay-per-request)                         |
-| **Total Baseline** | **~$X–Y/month** | Excluding [any variable cost, e.g., Bedrock/LLM usage] |
+## Per-Query Costs (AI-Powered Analysis)
 
-## Per-Query / Per-Invocation Costs *(if applicable)*
+If using NVIDIA Nemotron for article analysis:
 
-If the project uses a pay-per-use AI or compute service (e.g., Amazon Bedrock, SageMaker endpoints), break down the cost
-per user action:
+| Service               | Usage per analysis | Cost     |
+|:----------------------|:------------------:|---------:|
+| Nemotron (input)      |    ~2,000 tokens   |  ~$0.001 |
+| Nemotron (output)     |      ~500 tokens   |  ~$0.001 |
+| **Total per article** |                    | **~$0.002** |
 
-| Model / Service       | Usage per action |       Cost |
-|:----------------------|:----------------:|-----------:|
-| [Model name] (input)  |    ~X tokens     |     ~$X.XX |
-| [Model name] (output) |    ~X tokens     |     ~$X.XX |
-| **Total per action**  |                  | **~$X.XX** |
+**Monthly projections:**
+- 100 articles/month: ~$0.20
+- 500 articles/month: ~$1.00
+- 1,000 articles/month: ~$2.00
 
-Include example monthly cost projections at a few usage levels (e.g., 100, 500, 1,000 actions/month).
+## FRED API
 
-## One-Time Costs *(if applicable)*
+The FRED API is **free** with a rate limit of 120 requests/minute. MarginGuard's 7-day DynamoDB cache minimizes API calls—typical usage is <100 requests/month.
 
-If there are one-time costs (e.g., generating embeddings when uploading data), list them separately with a worked
-example.
-
-> **Note:** All cost estimates should be based on AWS pricing as of the month and year of publishing. Add a note that
-> actual costs may vary.
+> **Note:** Cost estimates based on AWS pricing as of September 2026. Actual costs may vary based on usage patterns.
 
 ---
 
 # Credits
 
-List everyone who contributed to the project. Use the following structure:
-
-**[Project Name]** is an open-source project developed by the [CIC team name].
+**MarginGuard** is a hackathon project developed for Beyond the Chatbot, Compound, Xtract, and Seed Round tracks.
 
 **Development Team:**
 
-- [Full Name](https://www.linkedin.com/in/[profile]/)
-- [Full Name](https://www.linkedin.com/in/[profile]/)
+- Sean McNeil — Full-stack development, financial engine architecture
+- [Team member 2] — [Role]
+- [Team member 3] — [Role]
 
-**Project Leadership:**
+**Technologies Powered By:**
 
-- **Technical Lead**: [Full Name](https://www.linkedin.com/in/[profile]/) — [Title], [Organization]
-- **Program Manager**: [Full Name](https://www.linkedin.com/in/[profile]/) — [Title], [Organization]
-
-**Special Thanks** *(if applicable)*:
-
-- [Full Name](https://www.linkedin.com/in/[profile]/) — [Title], [Organization] *(e.g., domain expert, data provider,
-  stakeholder)*
-
-Close with a line acknowledging the CIC:
-
-> This project is designed and developed with guidance and support from
-> the [Health Sciences and Sports Analytics Cloud Innovation Center, powered by AWS](https://digital.pitt.edu/cic).
+- AWS Serverless Services
+- Federal Reserve Economic Data (FRED)
+- NVIDIA Nemotron (optional AI features)
 
 ---
 
 # License
 
 This project is licensed under the [MIT License](./LICENSE).
-
-```plaintext
-MIT License
-
-Copyright (c) [YEAR] University of Pittsburgh Health Sciences and Sports Analytics Cloud Innovation Center
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/[org]/[repo]) or
-contact the development team.
 
 ---
 
@@ -345,17 +449,15 @@ contact the development team.
 **This document:**  
 (a) is for informational purposes only,  
 (b) references AWS product offerings and practices, which are subject to change without notice,  
-(c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or
-services are provided "as is" without warranties, representations, or conditions of any kind, whether express or
-implied. The responsibilities and liabilities of AWS to its customers are controlled by AWS agreements, and this
-document is not part of, nor does it modify, any agreement between AWS and its customers, and  
+(c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided "as is" without warranties, representations, or conditions of any kind, whether express or implied. The responsibilities and liabilities of AWS to its customers are controlled by AWS agreements, and this document is not part of, nor does it modify, any agreement between AWS and its customers, and  
 (d) is not to be considered a recommendation or viewpoint of AWS.
 
-**Additionally, you are solely responsible for testing, security and optimizing all code and assets on GitHub repo, and
-all such code and assets should be considered:**  
+**Additionally, you are solely responsible for testing, security and optimizing all code and assets on GitHub repo, and all such code and assets should be considered:**  
 (a) as-is and without warranties or representations of any kind,  
 (b) not suitable for production environments, or on production or other critical data, and  
-(c) to include shortcuts in order to support rapid prototyping such as, but not limited to, relaxed authentication and
-authorization and a lack of strict adherence to security best practices.
+(c) to include shortcuts in order to support rapid prototyping such as, but not limited to, relaxed authentication and authorization and a lack of strict adherence to security best practices.
 
-**All work produced is open source. More information can be found in the GitHub repo.**
+**Financial Disclaimer:**  
+MarginGuard is a demonstration project for hackathon evaluation. All financial calculations are deterministic and based on synthetic company data (Steel City Beverages). Real-world deployment requires validation with actual supply chain data and financial controls. Do not use for production financial decision-making without proper testing and compliance review.
+
+**All work produced is open source.** More information can be found in the GitHub repository.
