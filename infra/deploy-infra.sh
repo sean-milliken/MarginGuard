@@ -13,6 +13,18 @@ set -euo pipefail
 #   --help                    Show this help message
 #
 
+# Resolve repo root relative to this script regardless of call location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load local overrides from .env at repo root (gitignored, never committed)
+if [[ -f "$REPO_ROOT/.env" ]]; then
+    set -o allexport
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/.env"
+    set +o allexport
+fi
+
 # Configuration
 DEFAULT_APPROVAL="broadening"
 STACK_NAME="MarginGuardStack"
@@ -123,22 +135,22 @@ check_prerequisites() {
 # Install dependencies
 install_dependencies() {
     print_info "Installing npm dependencies..."
-    (cd .. && npm ci)
+    (cd "$REPO_ROOT" && npm install)
     print_success "Dependencies installed"
 }
 
 # Build TypeScript
 build_package() {
     print_info "Building TypeScript..."
-    npm run build -w @marginguard/app
-    npm run build
+    (cd "$REPO_ROOT" && npm run build -w @marginguard/app)
+    (cd "$SCRIPT_DIR" && npm run build)
     print_success "TypeScript compiled successfully"
 }
 
 # Bootstrap CDK
 bootstrap_cdk() {
     print_info "Bootstrapping CDK..."
-    npx cdk bootstrap
+    (cd "$SCRIPT_DIR" && npx cdk bootstrap)
     print_success "CDK bootstrap complete"
 }
 
@@ -146,9 +158,14 @@ bootstrap_cdk() {
 deploy_cdk() {
     local approval_level="$1"
     print_info "Deploying CDK stack '$STACK_NAME' (require-approval: $approval_level)..."
-    npx cdk deploy "$STACK_NAME" \
-        --require-approval "$approval_level" \
-        --context nemotronSecretArn=arn:aws:secretsmanager:us-east-1:620214493475:secret:marginguard/nvidia-api-key-XEJViB
+    local cdk_args=("$STACK_NAME" --require-approval "$approval_level")
+    if [[ -n "${NEMOTRON_SECRET_ARN:-}" ]]; then
+        cdk_args+=(--context "nemotronSecretArn=${NEMOTRON_SECRET_ARN}")
+    fi
+    if [[ -n "${FRED_SECRET_ARN:-}" ]]; then
+        cdk_args+=(--context "fredSecretArn=${FRED_SECRET_ARN}")
+    fi
+    (cd "$SCRIPT_DIR" && npx cdk deploy "${cdk_args[@]}")
     print_success "CDK deployment complete"
 }
 
@@ -195,7 +212,7 @@ deploy_frontend() {
         --query 'Stacks[0].Outputs[?OutputKey==`CognitoRegion`].OutputValue' \
         --output text)
 
-    cat > ../frontend/.env <<EOF
+    cat > "$REPO_ROOT/frontend/.env" <<EOF
 VITE_MOCK_MODE=false
 VITE_USER_POOL_ID=${user_pool_id}
 VITE_USER_POOL_CLIENT_ID=${user_pool_client_id}
@@ -206,11 +223,11 @@ EOF
 
     # Build frontend dist
     print_info "Building frontend..."
-    npm run build -w frontend
+    (cd "$REPO_ROOT" && npm run build -w frontend)
 
     # Zip the dist folder
     local zip_path="/tmp/marginguard-frontend.zip"
-    (cd ../frontend/dist && zip -qr "$zip_path" .)
+    (cd "$REPO_ROOT/frontend/dist" && zip -qr "$zip_path" .)
     print_success "Frontend zipped: $zip_path"
 
     # Create deployment and get presigned URL

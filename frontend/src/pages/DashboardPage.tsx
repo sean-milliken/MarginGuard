@@ -25,16 +25,15 @@ export default function DashboardPage() {
 
   const [economicSignals, setEconomicSignals] = useState<EconomicSignal[]>([]);
   const [loadingSignals, setLoadingSignals] = useState(true);
+  const [signalsError, setSignalsError] = useState<string | null>(null);
 
-  // Fetch economic signals on mount
   useEffect(() => {
     const fetchSignals = async () => {
       try {
         const signals = await getEconomicSignals();
         setEconomicSignals(signals);
       } catch (err) {
-        console.error("Error fetching economic signals:", err);
-        // Silently fail - FRED may not be configured
+        setSignalsError(err instanceof Error ? err.message : "Failed to load economic indicators");
       } finally {
         setLoadingSignals(false);
       }
@@ -105,8 +104,23 @@ export default function DashboardPage() {
             scenario={currentScenario}
             onAnalyze={() => navigate("/analysis")}
           />
-          {!loadingSignals && economicSignals.length > 0 && (
+          {loadingSignals ? (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5 animate-pulse">
+              <div className="h-4 w-40 bg-bg-secondary rounded mb-3" />
+              <div className="h-3 w-64 bg-bg-secondary rounded" />
+            </div>
+          ) : signalsError ? (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
+              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
+              <p className="text-xs text-text-secondary">{signalsError}</p>
+            </div>
+          ) : economicSignals.length > 0 ? (
             <EconomicSignals signals={economicSignals} />
+          ) : (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
+              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
+              <p className="text-xs text-text-secondary">No significant market movements detected right now.</p>
+            </div>
           )}
           <section
             className="grid sm:grid-cols-3 gap-4"
