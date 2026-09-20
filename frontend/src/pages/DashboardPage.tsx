@@ -1,11 +1,15 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useData } from "../contexts/DataContext";
 import { useSetup } from "../contexts/SetupContext";
 import {
   CriticalRiskCard,
   SupplierExposure,
 } from "../components/features/Dashboard";
+import { EconomicSignals } from "../components/features/Dashboard/EconomicSignals";
 import { Sidebar } from "../components/layout/Sidebar";
+import { getEconomicSignals, type EconomicSignal } from "../lib/api";
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { companyName } = useSetup();
@@ -18,6 +22,25 @@ export default function DashboardPage() {
     error,
     runScenario,
   } = useData();
+
+  const [economicSignals, setEconomicSignals] = useState<EconomicSignal[]>([]);
+  const [loadingSignals, setLoadingSignals] = useState(true);
+
+  // Fetch economic signals on mount
+  useEffect(() => {
+    const fetchSignals = async () => {
+      try {
+        const signals = await getEconomicSignals();
+        setEconomicSignals(signals);
+      } catch (err) {
+        console.error("Error fetching economic signals:", err);
+        // Silently fail - FRED may not be configured
+      } finally {
+        setLoadingSignals(false);
+      }
+    };
+    void fetchSignals();
+  }, []);
   const report = snapshot.report;
   const best = report.responseOptions.reduce((a, b) =>
     b.netFinancialBenefitCents > a.netFinancialBenefitCents ? b : a,
@@ -82,6 +105,9 @@ export default function DashboardPage() {
             scenario={currentScenario}
             onAnalyze={() => navigate("/analysis")}
           />
+          {!loadingSignals && economicSignals.length > 0 && (
+            <EconomicSignals signals={economicSignals} />
+          )}
           <section
             className="grid sm:grid-cols-3 gap-4"
             aria-label="Financial overview"

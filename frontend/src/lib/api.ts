@@ -34,3 +34,50 @@ export async function request<T>(path: string, body?: unknown): Promise<T> {
     );
   return data as T;
 }
+
+// FRED Economic Data Types
+export interface EconomicSignal {
+  id: string;
+  seriesId: string;
+  seriesName: string;
+  date: string;
+  currentValue: number;
+  previousValue: number;
+  absoluteChange: number;
+  percentageChange: number;
+  direction: "increasing" | "decreasing" | "stable";
+  severity: "low" | "medium" | "high" | "critical";
+  description: string;
+  units: string;
+  affectedComponents?: string[];
+  source: "FRED";
+  sourceUrl: string;
+}
+
+export interface EconomicImpact {
+  signalId: string;
+  componentId: string;
+  componentName: string;
+  currentCostCents: number;
+  projectedCostCents: number;
+  costIncreaseCents: number;
+  monthlyVolumeAffected: number;
+  monthlyImpactCents: number;
+  affectedProducts: {
+    productId: string;
+    productName: string;
+    monthlyVolume: number;
+    contributionMarginImpactCents: number;
+  }[];
+}
+
+// FRED API Functions
+export async function getEconomicSignals(): Promise<EconomicSignal[]> {
+  return request<EconomicSignal[]>("/fred/signals");
+}
+
+export async function getEconomicImpact(
+  signalId: string,
+): Promise<EconomicImpact[]> {
+  return request<EconomicImpact[]>(`/fred/impact/${encodeURIComponent(signalId)}`);
+}
