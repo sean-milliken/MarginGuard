@@ -8,6 +8,8 @@ export interface NvidiaClientConfig {
   model?: string;
   timeoutMs?: number;
   maxAttempts?: number;
+  /** Caps the qualitative JSON response. Interactive requests should be small enough for the API gateway window. */
+  maxTokens?: number;
   /** Shared budget for initial analysis and schema correction. */
   totalTimeoutMs?: number;
 }
@@ -53,6 +55,7 @@ export async function callNvidiaApi(
   messages: CompletionMessage[],
   maxAttempts = 3,
   deadlineMs?: number,
+  maxTokens = 4096,
 ): Promise<ApiCallResult> {
   let lastError: ApiCallResult | null = null;
   const expired = (): ApiCallResult => ({
@@ -86,7 +89,7 @@ export async function callNvidiaApi(
           model: modelId,
           messages,
           temperature: 0.1,
-          max_tokens: 4096,
+          max_tokens: maxTokens,
         },
         remaining === undefined
           ? undefined

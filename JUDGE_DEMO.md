@@ -14,7 +14,7 @@ From the repository root, run `npm ci`, `npm run build:demo`, then `npm start`. 
 4. Move **Disruption duration** to 30 days: contribution margin at risk becomes $552,000. Move **Supplier dependency** to 40%: it becomes $276,000. These are fresh calls to the same pure financial engine used by the API, not frontend approximations or model calls.
 5. Open **What would change our recommendation?** to see sampled boundary brackets. Raising **Additional response cost** above the recovery benefit makes **Take no action** preferable. Click **Reset assumptions**, or rerun Judge Demo, to restore the supplied baseline.
 6. Return to Dashboard and choose **No exposure · competitor appoints CEO**. The same scenario endpoint, finance engine and persistence path return zero affected units, zero exposure, and no action required. To test actual model classification of this source, open News Analysis, use the scenario example, and analyze it with a configured NVIDIA key.
-7. Open **AI Accuracy**. It shows the actual labeled dataset composition. Load a genuine `nemotron/eval-results.json` to see measured metrics and inspect incorrect predictions. No measured scores are supplied in this repository because no NVIDIA key was available during implementation.
+7. Open **AI Accuracy**. It shows the actual labeled dataset composition. Load the genuine local `nemotron/eval-results.json` produced by the harness to see measured metrics and inspect incorrect predictions. The results file is ignored by Git so that each run remains attributable to the configured model and key.
 
 ## Real Nemotron evaluation
 

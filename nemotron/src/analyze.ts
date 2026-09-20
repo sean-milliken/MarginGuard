@@ -162,6 +162,7 @@ export async function analyzeArticle(
     messages,
     config?.maxAttempts,
     deadlineMs,
+    config?.maxTokens,
   );
 
   if (!attempt1.success) {
@@ -194,6 +195,7 @@ export async function analyzeArticle(
     correctionMessages,
     config?.maxAttempts,
     deadlineMs,
+    config?.maxTokens,
   );
 
   if (!attempt2.success) {

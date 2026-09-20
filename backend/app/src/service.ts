@@ -190,7 +190,12 @@ export async function classifyArticle(
     analyzeArticle(input, {
       timeoutMs: 25000,
       totalTimeoutMs: 25000,
-      maxAttempts: 1,
+      // One bounded retry handles NVIDIA's documented transient 503/529/429
+      // responses without letting a correction attempt exceed this request window.
+      maxAttempts: 2,
+      // The UI only needs compact structured evidence, not a long narrative.
+      // A lower response cap makes the existing 25s API gateway budget practical.
+      maxTokens: 1200,
     }),
 ): Promise<AnalysisOutcome> {
   const input = intelligenceRequestSchema.parse(raw);
