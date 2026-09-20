@@ -13,6 +13,7 @@ import type {
 } from "../../../shared/src/application";
 import type { CompanyProfile, ExternalEvent, Scenario } from "../types/mock";
 import { request } from "../lib/api";
+import { useSetup } from "./SetupContext";
 import { useAuth } from "./AuthContext";
 interface DataContextType {
   snapshot: ApplicationSnapshot;
@@ -37,6 +38,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { done, companyName } = useSetup();
   const [snapshot, setSnapshot] = useState<ApplicationSnapshot | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
@@ -45,7 +47,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !done) {
+      setSnapshot(null);
+      setIntelligence(null);
+      setError(null);
+      return;
+    }
     let active = true;
     setError(null);
     request<ApplicationSnapshot>("/dashboard")
@@ -58,7 +65,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [isAuthenticated, attempt]);
+  }, [isAuthenticated, done, companyName, attempt]);
   const runScenario = useCallback(
     async (
       id: string,
@@ -119,7 +126,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     },
     [snapshot],
   );
-  if (!isAuthenticated || isLoading) return <>{children}</>;
+  if (!isAuthenticated || isLoading || !done) return <>{children}</>;
   if (!snapshot)
     return (
       <main className="p-12 text-text-primary">
@@ -142,7 +149,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { company: raw, event, report } = snapshot;
   const company: DataContextType["company"] = {
     id: raw.id,
-    name: raw.name,
+    name: companyName || raw.name,
     industry: "Beverage manufacturing · synthetic dataset",
     suppliers: raw.suppliers.map((s) => ({
       id: s.id,

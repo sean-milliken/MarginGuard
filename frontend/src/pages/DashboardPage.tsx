@@ -33,7 +33,11 @@ export default function DashboardPage() {
         const signals = await getEconomicSignals();
         setEconomicSignals(signals);
       } catch (err) {
-        setSignalsError(err instanceof Error ? err.message : "Failed to load economic indicators");
+        setSignalsError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load economic indicators",
+        );
       } finally {
         setLoadingSignals(false);
       }
@@ -60,7 +64,7 @@ export default function DashboardPage() {
               Supply Chain Risk Monitor
             </h1>
             <p className="text-sm text-text-secondary">
-              {companyName} · pick a disruption below to see the financial impact
+              {companyName} · synthetic manufacturing model
             </p>
           </div>
           <button
@@ -68,8 +72,18 @@ export default function DashboardPage() {
             onClick={() => navigate("/intelligence")}
           >
             Analyze a disruption
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
             </svg>
           </button>
         </header>
@@ -119,7 +133,10 @@ export default function DashboardPage() {
           ) : (
             <div className="rounded-xl border border-border bg-bg-tertiary p-5">
               <p className="text-sm font-semibold mb-1">Economic Indicators</p>
-              <p className="text-xs text-text-secondary">No significant market movements detected right now.</p>
+              <p className="text-xs text-text-secondary">
+                No economic observations are available to assess market
+                movements.
+              </p>
             </div>
           )}
           <section
@@ -127,7 +144,10 @@ export default function DashboardPage() {
             aria-label="Financial overview"
           >
             {[
-              { label: "Estimated cash loss", value: money(report.cashImpactCents) },
+              {
+                label: "Cash change vs. normal month",
+                value: money(report.cashImpactCents),
+              },
               {
                 label: "Best recovery option saves",
                 value: money(best.netFinancialBenefitCents),
@@ -150,14 +170,18 @@ export default function DashboardPage() {
             <SupplierExposure suppliers={company.suppliers} />
             <section className="rounded-xl border border-border bg-bg-tertiary p-5">
               <h2 className="font-semibold mb-1">Best recovery option</h2>
-              <p className="text-xs text-text-secondary mb-3">If you act on this disruption, here's your best move</p>
+              <p className="text-xs text-text-secondary mb-3">
+                If you act on this disruption, here's your best move
+              </p>
               <p className="text-sm text-text-secondary mb-3">
                 {best.description}
               </p>
               <p className="text-2xl text-success">
                 {money(best.netFinancialBenefitCents)}
               </p>
-              <p className="text-xs text-text-secondary mt-0.5">net financial benefit vs. no action</p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                net financial benefit vs. no action
+              </p>
               <button
                 className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
                 onClick={() => navigate("/responses")}
@@ -167,8 +191,12 @@ export default function DashboardPage() {
             </section>
           </div>
           <section className="rounded-xl border border-border bg-bg-tertiary p-5">
-            <h2 className="font-semibold mb-1">Monthly profit by product</h2>
-            <p className="text-xs text-text-secondary mb-4">How much profit each product generates in a normal month</p>
+            <h2 className="font-semibold mb-1">
+              Monthly contribution by product
+            </h2>
+            <p className="text-xs text-text-secondary mb-4">
+              Sales less variable costs, before fixed costs, interest, and tax.
+            </p>
             <div className="grid sm:grid-cols-3 gap-5">
               {company.products.map((p) => (
                 <div key={p.id}>
@@ -177,7 +205,8 @@ export default function DashboardPage() {
                     {money(p.totalMargin * 100)}
                   </p>
                   <p className="text-sm text-text-secondary">
-                    {p.unitsPerMonth.toLocaleString()} cases · {money(p.marginPerUnit * 100)} profit/case
+                    {p.unitsPerMonth.toLocaleString()} cases ·{" "}
+                    {money(p.marginPerUnit * 100)} contribution/case
                   </p>
                 </div>
               ))}

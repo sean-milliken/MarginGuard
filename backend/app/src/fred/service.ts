@@ -95,9 +95,10 @@ export function createFredService(
         return null;
       }
 
-      const { startDate, endDate } = options.startDate && options.endDate
-        ? { startDate: options.startDate, endDate: options.endDate }
-        : getDefaultDateRange();
+      const { startDate, endDate } =
+        options.startDate && options.endDate
+          ? { startDate: options.startDate, endDate: options.endDate }
+          : getDefaultDateRange();
 
       // Try cache first
       let observations = await cache.getObservations(
@@ -164,14 +165,18 @@ export function createFredService(
       }
 
       // Calculate signals
-      const signals = await getLatestSignals(observationsMap, FRED_SERIES_CONFIG);
+      const signals = await getLatestSignals(
+        observationsMap,
+        FRED_SERIES_CONFIG,
+      );
 
       return signals;
     },
 
     async getSignal(signalId) {
       // Signal ID format: seriesId-date
-      const [seriesId, date] = signalId.split("-", 2);
+      const [, seriesId, date] =
+        signalId.match(/^(.+)-(\d{4}-\d{2}-\d{2})$/) ?? [];
       if (!seriesId || !date) {
         return null;
       }

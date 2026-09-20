@@ -1,47 +1,63 @@
-import { test, expect } from "@playwright/test";
-test("dashboard → simulation → responses uses server-calculated financial values", async ({
+import { test, expect, type Page } from "@playwright/test";
+const dashboard = (page: Page) =>
+  page.getByRole("heading", { name: "Supply Chain Risk Monitor" });
+async function enterDemo(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await expect(dashboard(page)).toBeVisible();
+}
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/news", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/fred/signals", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: "Economic observations unavailable in this test." },
+    }),
+  );
+});
+test("setup → model → recovery uses server calculations and retains the do-nothing baseline", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "Financial Command Center" }),
-  ).toBeVisible();
+  await enterDemo(page);
   await expect(page.getByText("$276,000", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Simulate Event" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Analysis", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: /Model Impact/ }).click();
   await page.getByLabel("Disruption days").fill("0");
+  const response = page.waitForResponse(
+    (r) => r.url().endsWith("/api/analyses") && r.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Calculate impact" }).click();
+  expect((await (await response).json()).snapshot.report.affectedUnits).toBe(0);
   await expect(
-    page.getByText(
-      "0 cases · $0.00 revenue at risk · $0.00 contribution at risk",
-    ),
+    page.getByText("No products affected", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Responses", exact: true }).click();
+  await page.getByRole("button", { name: "See your recovery options" }).click();
   await expect(
     page.getByRole("heading", { name: "Accept the disruption" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Replace/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Dashboard", exact: true }).click();
+  await page.getByRole("button", { name: /Dashboard/ }).click();
   await page.getByLabel("Scenario").selectOption("logistics-15-days");
   await expect(page.getByText("$276,000", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Responses", exact: true }).click();
-  await expect(page.getByText("$187,500.00", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Compare response options" }).click();
+  await expect(
+    page.getByText("+\u0024187,500.00 net financial benefit", { exact: true }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
-test("all navigation routes render and refresh without missing pages", async ({
+test("navigation and reload retain setup and reach each revised page", async ({
   page,
 }) => {
-  for (const section of ["intelligence", "sources", "company", "evals"]) {
-    await page.goto(`/${section}`);
+  await enterDemo(page);
+  for (const [path, title] of [
+    ["intelligence", "News Analysis"],
+    ["sources", "Sources"],
+    ["company", "Company Data"],
+    ["evals", "AI Accuracy"],
+  ]) {
+    await page.goto(`/${path}`);
     await expect(
-      page.getByRole("heading", {
-        name: section[0]!.toUpperCase() + section.slice(1),
-        exact: true,
-      }),
+      page.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
   }
   await page.goto("/company");
@@ -49,36 +65,161 @@ test("all navigation routes render and refresh without missing pages", async ({
     page.getByRole("cell", { name: "$12.00", exact: true }),
   ).toBeVisible();
 });
-test("API connection failure shows retry rather than mock financial results", async ({
+test("setup remains available offline and the dashboard exposes a retry", async ({
   page,
 }) => {
   await page.route("**/api/dashboard", (route) =>
     route.fulfill({
       status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "Backend temporarily unavailable" }),
+      json: { error: "Backend temporarily unavailable" },
     }),
   );
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Try the demo/ }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Backend temporarily unavailable",
   );
   await expect(page.getByText("$276,000", { exact: true })).toHaveCount(0);
   await page.unroute("**/api/dashboard");
   await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Financial Command Center" }),
-  ).toBeVisible();
+  await expect(dashboard(page)).toBeVisible();
 });
-test("demo logout and sign-in are functional", async ({ page }) => {
-  await page.goto("/");
+test("demo logout and sign-in preserve the completed setup", async ({
+  page,
+}) => {
+  await enterDemo(page);
   await page.getByTitle("Logout").click();
   await expect(page.getByText("You've been signed out")).toBeVisible();
   await page.getByRole("button", { name: "Back to Sign in" }).click();
   await page.getByLabel("Email").fill("demo@marginguard.com");
   await page.getByLabel("Password").fill("demo-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(dashboard(page)).toBeVisible();
+});
+test("company labels persist, remain explicitly synthetic, and can be reset", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Personalize the demo/ }).click();
+  await page.getByLabel("Company name").fill("Acme Manufacturing");
+  await page.getByRole("button", { name: "Get started" }).click();
   await expect(
-    page.getByRole("heading", { name: "Financial Command Center" }),
+    page.getByText("Acme Manufacturing · synthetic manufacturing model"),
+  ).toBeVisible();
+  await page.reload();
+  await expect(dashboard(page)).toBeVisible();
+  await page.getByRole("button", { name: /Company Data/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Acme Manufacturing — Products" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Switch", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await expect(
+    page.getByText("Steel City Beverages · synthetic manufacturing model"),
+  ).toBeVisible();
+});
+test("malformed saved setup returns to onboarding instead of crashing", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("marginguard_setup_v1", '{"done":true,"mode":"bad"}'),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+  ).toBeVisible();
+});
+test("news selection and sources preserve live headlines and show fetch failures", async ({
+  page,
+}) => {
+  const article = {
+    url: "https://example.com/freight",
+    title: "Freight terminal closes for fifteen days",
+    domain: "Example News",
+    seendate: "20260919T120000Z",
+    language: "English",
+    sourcecountry: "US",
+  };
+  await page.route("**/api/news", (route) =>
+    route.fulfill({ json: [article] }),
+  );
+  await enterDemo(page);
+  await page.getByRole("button", { name: /News Analysis/ }).click();
+  await page.getByRole("button", { name: "Use headline" }).click();
+  await expect(page.getByLabel("Source text")).toHaveValue(article.title);
+  await page.getByRole("button", { name: /Sources/ }).click();
+  await expect(page.getByRole("link", { name: article.title })).toHaveAttribute(
+    "href",
+    article.url,
+  );
+  await expect(
+    page.getByText("Via Google News RSS · cached for up to 5 minutes"),
+  ).toBeVisible();
+  await page.route("**/api/news", (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: "News temporarily unavailable" },
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "News:" }),
+  ).toContainText("News temporarily unavailable");
+});
+test("economic price decreases show savings and failed impact loads can retry", async ({
+  page,
+}) => {
+  const signal = {
+    id: "PPI-2026-09-01",
+    seriesId: "PPI",
+    seriesName: "Packaging index",
+    date: "2026-09-01",
+    percentageChange: -5,
+    severity: "high",
+    direction: "decreasing",
+    description: "Packaging costs decreased",
+    affectedComponents: ["carton"],
+    sourceUrl: "https://fred.stlouisfed.org/series/PPI",
+  };
+  await page.route("**/api/fred/signals", (route) =>
+    route.fulfill({ json: [signal] }),
+  );
+  await page.route("**/api/fred/impact/*", (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: "Impact temporarily unavailable" },
+    }),
+  );
+  await enterDemo(page);
+  await page
+    .getByRole("button", { name: "View financial impact", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Impact temporarily unavailable",
+  );
+  await page.route("**/api/fred/impact/*", (route) =>
+    route.fulfill({
+      json: [
+        {
+          componentId: "carton",
+          componentName: "Carton",
+          currentCostCents: 60,
+          projectedCostCents: 57,
+          monthlyImpactCents: -300000,
+          affectedProducts: [],
+        },
+      ],
+    }),
+  );
+  await page.getByRole("button", { name: "Retry impact" }).click();
+  await expect(page.getByText("-$3,000.00", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Lower costs increase contribution."),
   ).toBeVisible();
 });

@@ -6,8 +6,8 @@ import type { FredSeriesConfig } from "./types";
  */
 export const SEVERITY_THRESHOLDS = {
   low: 2, // < 2% change
-  medium: 5, // 2-5% change
-  high: 10, // 5-10% change
+  medium: 2, // 2% to below 5% change
+  high: 5, // 5% to below 10% change
   critical: 10, // > 10% change
 } as const;
 
@@ -63,7 +63,9 @@ export const FRED_SERIES_CONFIG: FredSeriesConfig[] = [
 /**
  * Get series configuration by ID
  */
-export function getSeriesConfig(seriesId: string): FredSeriesConfig | undefined {
+export function getSeriesConfig(
+  seriesId: string,
+): FredSeriesConfig | undefined {
   return FRED_SERIES_CONFIG.find((c) => c.id === seriesId);
 }
 

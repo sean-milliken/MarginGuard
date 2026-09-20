@@ -20,15 +20,7 @@ export function createNewsService(): NewsService {
         return cache.articles;
       }
 
-      let articles: NewsArticle[] = [];
-      try {
-        articles = await searchNews(SUPPLY_CHAIN_QUERY, 15);
-      } catch (err) {
-        console.error(
-          "News fetch failed:",
-          err instanceof Error ? err.message : err,
-        );
-      }
+      const articles = await searchNews(SUPPLY_CHAIN_QUERY, 15);
 
       // Deduplicate by URL, keep newest first
       const seen = new Set<string>();

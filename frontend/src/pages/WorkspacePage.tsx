@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSetup } from "../contexts/SetupContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useData } from "../contexts/DataContext";
 import {
@@ -11,6 +12,7 @@ import {
 export default function WorkspacePage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { companyName } = useSetup();
   const { snapshot, busy, error, runScenario, intelligence, analyzeText } =
     useData();
   const { report, company, event } = snapshot;
@@ -22,14 +24,44 @@ export default function WorkspacePage() {
   const [article, setArticle] = useState("");
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [signals, setSignals] = useState<EconomicSignal[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
+  const [signalsLoading, setSignalsLoading] = useState(false);
+  const [signalsError, setSignalsError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
+    if (!["/sources", "/intelligence"].includes(pathname)) return;
+    let active = true;
+    setNewsLoading(true);
+    setNewsError(null);
     getNews()
-      .then(setNews)
-      .catch(() => {});
-    getEconomicSignals()
-      .then(setSignals)
-      .catch(() => {});
-  }, []);
+      .then((data) => {
+        if (active) setNews(data);
+      })
+      .catch((error) => {
+        if (active) setNewsError(error.message);
+      })
+      .finally(() => {
+        if (active) setNewsLoading(false);
+      });
+    if (pathname === "/sources") {
+      setSignalsLoading(true);
+      setSignalsError(null);
+      getEconomicSignals()
+        .then((data) => {
+          if (active) setSignals(data);
+        })
+        .catch((error) => {
+          if (active) setSignalsError(error.message);
+        })
+        .finally(() => {
+          if (active) setSignalsLoading(false);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [pathname, retry]);
   const money = (cents: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -54,8 +86,8 @@ export default function WorkspacePage() {
       sub: "Paste a news article or supply chain alert. AI will identify what's disrupted and who's affected.",
     },
     "/sources": {
-      title: "Source Article",
-      sub: "The scenario used to populate this model.",
+      title: "Sources",
+      sub: "The scenario, news headlines, and economic observations available to the model.",
     },
     "/company": {
       title: "Company Data",
@@ -78,6 +110,7 @@ export default function WorkspacePage() {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: "UTC",
     });
   };
   const panel = "rounded-xl border border-border bg-bg-tertiary p-5 space-y-3";
@@ -96,6 +129,31 @@ export default function WorkspacePage() {
           </p>
         )}
         {busy && <p role="status">Working…</p>}
+        {["/sources", "/intelligence"].includes(pathname) && (
+          <>
+            {newsLoading && <p role="status">Loading news headlines…</p>}
+            {newsError && (
+              <div role="alert">
+                News: {newsError}{" "}
+                <button
+                  className="underline"
+                  onClick={() => setRetry((value) => value + 1)}
+                >
+                  Retry sources
+                </button>
+              </div>
+            )}
+            {!newsLoading && !newsError && news.length === 0 && (
+              <p>No news headlines are available.</p>
+            )}
+            {pathname === "/sources" && signalsLoading && (
+              <p role="status">Loading economic observations…</p>
+            )}
+            {pathname === "/sources" && signalsError && (
+              <div role="alert">Economic indicators: {signalsError}</div>
+            )}
+          </>
+        )}
         {pathname === "/analysis" && (
           <>
             <form
@@ -180,7 +238,7 @@ export default function WorkspacePage() {
                     plain: true,
                   },
                   {
-                    label: "Estimated cash loss",
+                    label: "Cash change vs. normal month",
                     value: money(report.cashImpactCents),
                     negative: report.cashImpactCents < 0,
                   },
@@ -308,75 +366,91 @@ export default function WorkspacePage() {
                   No recovery options available for the current scenario.
                 </p>
                 <p className="text-text-tertiary text-xs mt-1">
-                  Select a disruption on the Model Impact page to see your
-                  options.
+                  Doing nothing remains available as a baseline. Other actions
+                  may be capacity-limited or unable to relieve the current
+                  bottleneck.
                 </p>
               </div>
             )}
-            {report.responseOptions
-              .filter((o) => o.recoveredUnits > 0)
-              .map((option) => (
-                <section className={panel} key={option.id}>
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <h2 className="font-semibold text-base leading-snug">
-                      {option.description}
-                    </h2>
-                    <span
-                      className={`text-sm font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${option.netFinancialBenefitCents > 0 ? "bg-success/15 text-success" : "bg-error/15 text-error"}`}
+            {report.responseOptions.map((option) => (
+              <section className={panel} key={option.id}>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <h2 className="font-semibold text-base leading-snug">
+                    {option.description}
+                  </h2>
+                  <span
+                    className={`text-sm font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${option.netFinancialBenefitCents > 0 ? "bg-success/15 text-success" : "bg-error/15 text-error"}`}
+                  >
+                    {option.netFinancialBenefitCents > 0 ? "+" : ""}
+                    {money(option.netFinancialBenefitCents)} net financial
+                    benefit
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Cases recovered",
+                      value: option.recoveredUnits.toLocaleString(),
+                      plain: true,
+                    },
+                    {
+                      label: "Extra cost to act",
+                      value: money(option.incrementalCostCents),
+                      negative: option.incrementalCostCents > 0,
+                    },
+                    {
+                      label: "Profit loss avoided",
+                      value: money(option.avoidedContributionMarginLossCents),
+                      positive: true,
+                    },
+                    {
+                      label: "Net cash impact",
+                      value: money(option.cashImpactCents),
+                      negative: option.cashImpactCents < 0,
+                    },
+                  ].map(({ label, value, negative, positive }) => (
+                    <div
+                      key={label}
+                      className="rounded-lg bg-bg-secondary p-3 space-y-1"
                     >
-                      {option.netFinancialBenefitCents > 0 ? "+" : ""}
-                      {money(option.netFinancialBenefitCents)} net financial
-                      benefit
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      {
-                        label: "Cases recovered",
-                        value: option.recoveredUnits.toLocaleString(),
-                        plain: true,
-                      },
-                      {
-                        label: "Extra cost to act",
-                        value: money(option.incrementalCostCents),
-                        negative: option.incrementalCostCents > 0,
-                      },
-                      {
-                        label: "Profit loss avoided",
-                        value: money(option.avoidedContributionMarginLossCents),
-                        positive: true,
-                      },
-                      {
-                        label: "Net cash impact",
-                        value: money(option.cashImpactCents),
-                        negative: option.cashImpactCents < 0,
-                      },
-                    ].map(({ label, value, negative, positive }) => (
-                      <div
-                        key={label}
-                        className="rounded-lg bg-bg-secondary p-3 space-y-1"
+                      <p className="text-xs text-text-secondary uppercase tracking-wide leading-tight">
+                        {label}
+                      </p>
+                      <p
+                        className={`text-base font-bold tabular-nums ${negative ? "text-error" : positive ? "text-success" : ""}`}
                       >
-                        <p className="text-xs text-text-secondary uppercase tracking-wide leading-tight">
-                          {label}
-                        </p>
-                        <p
-                          className={`text-base font-bold tabular-nums ${negative ? "text-error" : positive ? "text-success" : ""}`}
-                        >
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-text-secondary pt-1">
-                    <span>Remaining profit still at risk</span>
-                    <span className="font-medium text-text-primary tabular-nums">
-                      {money(
-                        option.residualExposure.contributionMarginAtRiskCents,
-                      )}
-                    </span>
-                  </div>
-                </section>
-              ))}
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-sm text-text-secondary pt-1">
+                  <span>Remaining contribution at risk</span>
+                  <span className="font-medium text-text-primary tabular-nums">
+                    {money(
+                      option.residualExposure.contributionMarginAtRiskCents,
+                    )}
+                  </span>
+                </div>
+                <details>
+                  <summary className="cursor-pointer text-primary-300">
+                    How this response was calculated
+                  </summary>
+                  {option.calculationSteps.length === 0 ? (
+                    <p className="text-sm mt-2">
+                      Baseline: no incremental cost and no avoided loss.
+                    </p>
+                  ) : (
+                    option.calculationSteps.map((step, index) => (
+                      <p key={index} className="text-sm mt-2">
+                        {step.formula} = {step.result.toLocaleString()}{" "}
+                        {step.unit}
+                      </p>
+                    ))
+                  )}
+                </details>
+              </section>
+            ))}
           </>
         )}
         {pathname === "/intelligence" && (
@@ -385,22 +459,18 @@ export default function WorkspacePage() {
               <section className={panel}>
                 <h2 className="font-semibold">Recent news headlines</h2>
                 <p className="text-xs text-text-tertiary">
-                  Select an article to pre-load its headline into the source
-                  text field below, then add the full article body for analysis.
+                  Use a headline as input, or paste the full article text below.
+                  Article bodies are not fetched automatically.
                 </p>
                 <ul className="space-y-2">
                   {news.map((a) => (
                     <li key={a.url} className="flex items-start gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          setArticle(
-                            `${a.title}\n\nSource: ${a.domain}\nURL: ${a.url}\n\n[Paste article text here]`,
-                          )
-                        }
+                        onClick={() => setArticle(a.title)}
                         className="shrink-0 rounded border border-border bg-bg-secondary px-2 py-0.5 text-xs hover:bg-bg-hover"
                       >
-                        Use
+                        Use headline
                       </button>
                       <div>
                         <a
@@ -637,7 +707,7 @@ export default function WorkspacePage() {
               <section className={panel}>
                 <h2 className="font-semibold">Live news · supply chain</h2>
                 <p className="text-xs text-text-tertiary">
-                  Via GDELT · updates every 5 minutes
+                  Via Google News RSS · cached for up to 5 minutes
                 </p>
                 <ul className="space-y-3">
                   {news.map((article) => (
@@ -702,21 +772,29 @@ export default function WorkspacePage() {
               </section>
             )}
 
-            {news.length === 0 && signals.length === 0 && (
-              <p className="text-sm text-text-secondary">
-                Live news and economic indicators load when the backend is
-                reachable. Configure FRED_API_KEY to enable economic signals.
-              </p>
-            )}
+            {!newsLoading &&
+              !signalsLoading &&
+              !newsError &&
+              !signalsError &&
+              news.length === 0 &&
+              signals.length === 0 && (
+                <p className="text-sm text-text-secondary">
+                  No source observations are currently available. This does not
+                  establish that there is no supply-chain risk.
+                </p>
+              )}
           </>
         )}
         {pathname === "/company" && (
           <>
             <section className={panel}>
-              <h2 className="font-semibold">{company.name} — Products</h2>
+              <h2 className="font-semibold">
+                {companyName || company.name} — Products
+              </h2>
               <p className="text-sm text-text-secondary">
-                Each row is a product line. "Profit/case" is what's left after
-                subtracting the cost to make each 12-can case.
+                This uses synthetic Steel City Beverages inputs.
+                "Contribution/case" is what's left after subtracting the cost to
+                make each 12-can case.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -804,18 +882,17 @@ export default function WorkspacePage() {
           <section className={panel}>
             <h2 className="font-semibold">How accurate is the AI?</h2>
             <p className="text-sm text-text-secondary">
-              The AI analysis (News Analysis page) has been tested against a set
-              of labeled examples to measure how often it correctly identifies
-              disruption type, affected entities, and severity.
+              The repository includes labeled examples and an evaluation harness
+              for measuring classification and entity extraction.
             </p>
             <p className="text-sm text-text-secondary">
-              No evaluation has been run in this session — scores shown
-              elsewhere in the app reflect the model's design, not a live
-              measurement.
+              No evaluation results are loaded in this session. Model confidence
+              on an individual analysis is not measured accuracy.
             </p>
             <p className="text-sm text-text-secondary">
               The financial calculations (pricing, profit margins, case counts)
-              are deterministic math — they don't use AI and are always exact.
+              use explicit inputs and documented rounding rules. They do not use
+              AI; the result depends on the accuracy of those inputs.
             </p>
           </section>
         )}

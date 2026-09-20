@@ -35,7 +35,7 @@ const api = (async () => {
 
   return createApi({
     store: await dynamoStore(process.env.ANALYSES_TABLE!),
-    fredService,
+    fredService: fredClient ? fredService : undefined,
     newsService: createNewsService(),
   });
 })();

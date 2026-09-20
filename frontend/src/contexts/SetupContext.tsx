@@ -19,7 +19,22 @@ const defaultState: SetupState = { done: false, mode: "demo", companyName: "" };
 function load(): SetupState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as SetupState) : defaultState;
+    const value: unknown = raw ? JSON.parse(raw) : null;
+    if (!value || typeof value !== "object") return defaultState;
+    const saved = value as Partial<SetupState>;
+    if (
+      saved.done !== true ||
+      !["demo", "own"].includes(saved.mode ?? "") ||
+      typeof saved.companyName !== "string" ||
+      !saved.companyName.trim() ||
+      saved.companyName.length > 120
+    )
+      return defaultState;
+    return {
+      done: true,
+      mode: saved.mode!,
+      companyName: saved.companyName.trim(),
+    };
   } catch {
     return defaultState;
   }
@@ -27,19 +42,32 @@ function load(): SetupState {
 
 const SetupContext = createContext<SetupContextValue | null>(null);
 
-export const SetupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SetupProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [state, setState] = useState<SetupState>(load);
 
   const completeSetup = (mode: SetupMode, companyName = "") => {
-    const name = mode === "demo" ? "Steel City Beverages" : companyName.trim() || "My Company";
+    const name =
+      mode === "demo"
+        ? "Steel City Beverages"
+        : companyName.trim().slice(0, 120) || "My Company";
     const next: SetupState = { done: true, mode, companyName: name };
     setState(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* Setup remains available for this session. */
+    }
   };
 
   const resetSetup = () => {
     setState(defaultState);
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* Storage may be disabled. */
+    }
   };
 
   return (

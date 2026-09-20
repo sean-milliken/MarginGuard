@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import { expect } from "expect";
 import { calculateSignal } from "../signals";
 import type { EconomicObservation, FredSeriesConfig } from "../types";
 
@@ -43,7 +44,7 @@ describe("calculateSignal", () => {
     expect(signal.absoluteChange).toBe(-5);
     expect(signal.percentageChange).toBe(-5);
     expect(signal.direction).toBe("decreasing");
-    expect(signal.severity).toBe("medium");
+    expect(signal.severity).toBe("high");
   });
 
   it("correctly identifies stable values", () => {
