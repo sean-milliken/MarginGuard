@@ -13,7 +13,7 @@ export default function WorkspacePage() {
     [supplier, setSupplier] = useState(
       event.supplierIds[0] ?? company.suppliers[0]!.id,
     );
-  const [article, setArticle] = useState(snapshot.source.text);
+  const [article, setArticle] = useState("");
   const money = (cents: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -190,12 +190,18 @@ export default function WorkspacePage() {
               Independent alternatives, compared with doing nothing. These are
               simulations; no orders are placed.
             </p>
+            {report.responseOptions.filter((o) => o.recoveredUnits > 0).length === 0 && (
+              <div className="rounded-xl border border-border bg-bg-tertiary p-6 text-center">
+                <p className="text-text-secondary text-sm">No recovery options available for the current scenario.</p>
+                <p className="text-text-tertiary text-xs mt-1">Select a disruption on the Model Impact page to see your options.</p>
+              </div>
+            )}
             {report.responseOptions.filter((o) => o.recoveredUnits > 0).map((option) => (
               <section className={panel} key={option.id}>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <h2 className="font-semibold text-base leading-snug">{option.description}</h2>
                   <span className={`text-sm font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${option.netFinancialBenefitCents > 0 ? "bg-success/15 text-success" : "bg-error/15 text-error"}`}>
-                    {option.netFinancialBenefitCents > 0 ? "+" : ""}{money(option.netFinancialBenefitCents)} net benefit
+                    {option.netFinancialBenefitCents > 0 ? "+" : ""}{money(option.netFinancialBenefitCents)} net financial benefit
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -236,6 +242,21 @@ export default function WorkspacePage() {
               <p className="text-sm text-text-secondary">
                 The AI reads the text and tells you what's disrupted, who's affected, and how serious it is. Your text is only sent when you click the button below.
               </p>
+              {!article && (
+                <div className="rounded-lg border border-border bg-bg-secondary px-4 py-3 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-text-primary">Example: Steel City Beverages scenario</p>
+                    <p className="text-xs text-text-secondary mt-0.5 truncate max-w-md">{snapshot.source.text.split("\n")[0]}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setArticle(snapshot.source.text)}
+                    className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-primary hover:border-primary-500 hover:text-primary-300 transition-colors"
+                  >
+                    Use this example
+                  </button>
+                </div>
+              )}
               <label className="block">
                 Article or alert text
                 <textarea

@@ -155,8 +155,9 @@ export default function DashboardPage() {
                 {best.description}
               </p>
               <p className="text-2xl text-success">
-                {money(best.netFinancialBenefitCents)} saved vs. doing nothing
+                {money(best.netFinancialBenefitCents)}
               </p>
+              <p className="text-xs text-text-secondary mt-0.5">net financial benefit vs. no action</p>
               <button
                 className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
                 onClick={() => navigate("/responses")}
