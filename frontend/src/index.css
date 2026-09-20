@@ -1,64 +1,246 @@
 @import "tailwindcss";
 
+.judge-panel,
+.judge-demo {
+  border: 1px solid #2a3444;
+  border-radius: 16px;
+  padding: 24px;
+  background: #12171f;
+}
+.judge-button {
+  background: #0369a1;
+  color: white;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.judge-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.exposure-hero {
+  border-left: 4px solid #38bdf8;
+}
+.exposure-amount {
+  font-size: clamp(1.8rem, 4vw, 3.6rem);
+  line-height: 1.15;
+  font-weight: 700;
+  margin: 14px 0;
+  font-variant-numeric: tabular-nums;
+}
+.provenance {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  padding: 3px 6px;
+  margin-top: 8px;
+}
+.provenance-source {
+  color: #cbd5e1;
+}
+.provenance-ai {
+  color: #c4b5fd;
+}
+.provenance-deterministic {
+  color: #6ee7b7;
+}
+.judge-metric {
+  background: #1a2332;
+  border-radius: 10px;
+  padding: 16px;
+  font-size: 12px;
+}
+.judge-metric strong {
+  font-size: 24px;
+}
+.dependency-chain {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+.dependency-node {
+  position: relative;
+  border: 1px solid #3b4a63;
+  border-top: 3px solid #38bdf8;
+  padding: 16px 12px;
+  border-radius: 8px;
+  animation: decision-enter 0.35s both;
+}
+.dependency-node:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  right: -21px;
+  top: 40%;
+  color: #38bdf8;
+}
+.dependency-node span {
+  display: block;
+  color: #9ba3b4;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.dependency-node strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.trace-stages li {
+  padding: 5px 0;
+  animation: decision-enter 0.25s both;
+}
+.decision-table {
+  width: 100%;
+  font-size: 14px;
+  text-align: left;
+}
+.decision-table td,
+.decision-table th {
+  padding: 12px;
+  border-bottom: 1px solid #2a3444;
+}
+.decision-table td:not(:first-child) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.recommended-row {
+  background: #102b2a;
+}
+.calculation-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #2a3444;
+  font-size: 12px;
+}
+.calculation-list code {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.calculation-list strong {
+  flex-shrink: 0;
+}
+.source-excerpt {
+  border-left: 2px solid #64748b;
+  padding: 12px 16px;
+  color: #cbd5e1;
+  white-space: pre-line;
+}
+@keyframes decision-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dependency-node,
+  .trace-stages li {
+    animation: none;
+  }
+}
+@media (max-width: 1000px) {
+  .dependency-chain {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .dependency-node:not(:last-child)::after {
+    content: "↓";
+    right: 50%;
+    top: auto;
+    bottom: -23px;
+  }
+}
+@media (max-width: 640px) {
+  .app-shell {
+    display: block;
+  }
+  .app-shell aside.fixed {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+  main.ml-\[220px\],
+  div.ml-\[220px\] {
+    margin-left: 0;
+  }
+  .judge-panel,
+  .judge-demo {
+    padding: 16px;
+  }
+  .calculation-list li {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 @theme {
   /* Base Colors (Backgrounds) */
-  --color-bg-primary: #0A0E14;
-  --color-bg-secondary: #12171F;
-  --color-bg-tertiary: #1A2332;
-  --color-bg-hover: #222A3A;
+  --color-bg-primary: #0a0e14;
+  --color-bg-secondary: #12171f;
+  --color-bg-tertiary: #1a2332;
+  --color-bg-hover: #222a3a;
 
   /* Text Colors */
-  --color-text-primary: #E8EBF0;
-  --color-text-secondary: #9BA3B4;
-  --color-text-tertiary: #6B7280;
-  --color-text-disabled: #4B5563;
+  --color-text-primary: #e8ebf0;
+  --color-text-secondary: #9ba3b4;
+  --color-text-tertiary: #6b7280;
+  --color-text-disabled: #4b5563;
 
   /* Border Colors */
-  --color-border: #2A3444;
-  --color-border-focus: #3B4A63;
+  --color-border: #2a3444;
+  --color-border-focus: #3b4a63;
 
   /* Brand/Primary (Blue) */
-  --color-primary-50: #E0F2FE;
-  --color-primary-100: #BAE6FD;
-  --color-primary-200: #7DD3FC;
-  --color-primary-300: #38BDF8;
-  --color-primary-400: #0EA5E9;
-  --color-primary-500: #0284C7;
-  --color-primary-600: #0369A1;
+  --color-primary-50: #e0f2fe;
+  --color-primary-100: #bae6fd;
+  --color-primary-200: #7dd3fc;
+  --color-primary-300: #38bdf8;
+  --color-primary-400: #0ea5e9;
+  --color-primary-500: #0284c7;
+  --color-primary-600: #0369a1;
   --color-primary-700: #075985;
-  --color-primary-800: #0C4A6E;
-  --color-primary-900: #0A3A56;
+  --color-primary-800: #0c4a6e;
+  --color-primary-900: #0a3a56;
 
   /* Semantic Colors - Success (Green) */
-  --color-success-light: #34D399;
-  --color-success: #10B981;
+  --color-success-light: #34d399;
+  --color-success: #10b981;
   --color-success-dark: #059669;
   --color-success-bg: rgba(16, 185, 129, 0.1);
 
   /* Semantic Colors - Warning (Amber) */
-  --color-warning-light: #FBBF24;
-  --color-warning: #F59E0B;
-  --color-warning-dark: #D97706;
+  --color-warning-light: #fbbf24;
+  --color-warning: #f59e0b;
+  --color-warning-dark: #d97706;
   --color-warning-bg: rgba(245, 158, 11, 0.1);
 
   /* Semantic Colors - Error (Red) */
-  --color-error-light: #F87171;
-  --color-error: #EF4444;
-  --color-error-dark: #DC2626;
+  --color-error-light: #f87171;
+  --color-error: #ef4444;
+  --color-error-dark: #dc2626;
   --color-error-bg: rgba(239, 68, 68, 0.1);
 
   /* Semantic Colors - Info (Blue) */
-  --color-info-light: #60A5FA;
-  --color-info: #3B82F6;
-  --color-info-dark: #2563EB;
+  --color-info-light: #60a5fa;
+  --color-info: #3b82f6;
+  --color-info-dark: #2563eb;
   --color-info-bg: rgba(59, 130, 246, 0.1);
 
   /* 3D Material Colors */
-  --color-3d-metal: #71849C;
+  --color-3d-metal: #71849c;
   --color-3d-glass: rgba(255, 255, 255, 0.05);
-  --color-3d-glow-primary: #0EA5E9;
-  --color-3d-glow-success: #10B981;
-  --color-3d-glow-error: #EF4444;
+  --color-3d-glow-primary: #0ea5e9;
+  --color-3d-glow-success: #10b981;
+  --color-3d-glow-error: #ef4444;
   --color-3d-shadow: rgba(0, 0, 0, 0.5);
 }
 

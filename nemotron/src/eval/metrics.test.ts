@@ -60,6 +60,27 @@ const makeFailResult = (id: string): EvalResultItem => ({
 });
 
 describe('calculateMetrics', () => {
+  it('computes relevance precision, recall and F1 and counts failures in category denominators', () => {
+    const dataset = [
+      makeDatasetItem('tp', 'LOGISTICS_DISRUPTION', true, [], true),
+      makeDatasetItem('fp', 'IRRELEVANT', false, [], true),
+      makeDatasetItem('fn', 'SUPPLIER_DISRUPTION', true, [], true),
+      makeDatasetItem('failed', 'LOGISTICS_DISRUPTION', true, [], true),
+    ];
+    const metrics = calculateMetrics([
+      makeSuccessResult('tp', 'LOGISTICS_DISRUPTION', true),
+      makeSuccessResult('fp', 'LOGISTICS_DISRUPTION', true),
+      makeSuccessResult('fn', 'IRRELEVANT', false),
+      makeFailResult('failed'),
+    ], dataset);
+    expect(metrics.relevancePrecision).toBe(0.5);
+    expect(metrics.relevanceRecall).toBe(0.5);
+    expect(metrics.relevanceF1).toBe(0.5);
+    expect(metrics.relevanceExamples).toBe(3);
+    expect(metrics.classificationAccuracy).toBe(0.25);
+    expect(metrics.classificationByCategory.LOGISTICS_DISRUPTION).toEqual({ total: 2, correct: 1, accuracy: 0.5 });
+    expect(metrics.structuredOutputValidityRate).toBe(0.75);
+  });
   it('returns perfect scores when all predictions are correct', () => {
     const dataset = [
       makeDatasetItem('a', 'LOGISTICS_DISRUPTION', true, [{ name: 'Port X', type: 'PORT' }], true),

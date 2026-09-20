@@ -18,7 +18,8 @@ function unique(ids: string[], label: string): void {
 function validate(company: Company, event: IntelligenceEvent): void {
   integer(company.daysInMonth, 'daysInMonth', 1, 31);
   if (!/^[A-Z]{3}$/.test(company.currency)) throw new Error('currency must be a three-letter uppercase code');
-  if (event.type !== 'logistics-disruption') throw new Error('Unsupported event type');
+  if (!['logistics-disruption', 'irrelevant'].includes(event.type)) throw new Error('Unsupported event type');
+  if (event.type === 'irrelevant' && (event.supplierIds.length || event.disruptionDays || event.unavailableBps)) throw new Error('Irrelevant events must have no matched disruption inputs');
   integer(event.disruptionDays, 'disruptionDays', 0, company.daysInMonth);
   integer(event.unavailableBps, 'unavailableBps', 0, 10_000);
   unique(company.suppliers.map(s => s.id), 'suppliers');

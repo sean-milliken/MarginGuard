@@ -41,6 +41,7 @@ export function calculateMetrics(
   let classificationCorrect = 0;
   let relevanceCorrect = 0;
   let relevanceTotal = 0;
+  let truePositive = 0, falsePositive = 0, falseNegative = 0;
   let entityPrecisionSum = 0;
   let entityRecallSum = 0;
   let entityMetricCount = 0;
@@ -57,6 +58,8 @@ export function calculateMetrics(
 
     if (result.firstAttemptSchemaValid) firstAttemptValidCount++;
 
+    const stats = categoryStats[item.groundTruth.eventCategory];
+    if (stats) stats.total++;
     if (!result.success || !result.predicted) continue;
 
     const predicted = result.predicted;
@@ -66,7 +69,6 @@ export function calculateMetrics(
     const gtCategory = gt.eventCategory;
     const catStats = categoryStats[gtCategory];
     if (catStats) {
-      catStats.total++;
       if (predCategory === gtCategory) {
         classificationCorrect++;
         catStats.correct++;
@@ -75,6 +77,9 @@ export function calculateMetrics(
 
     if (item.businessContext !== undefined) {
       relevanceTotal++;
+      if (predicted.businessRelevance.isRelevant && gt.isRelevant) truePositive++;
+      if (predicted.businessRelevance.isRelevant && !gt.isRelevant) falsePositive++;
+      if (!predicted.businessRelevance.isRelevant && gt.isRelevant) falseNegative++;
       if (predicted.businessRelevance.isRelevant === gt.isRelevant) {
         relevanceCorrect++;
       }
@@ -116,6 +121,10 @@ export function calculateMetrics(
   ) as EvalMetrics['classificationByCategory'];
 
   return {
+    relevancePrecision: truePositive + falsePositive ? truePositive / (truePositive + falsePositive) : 0,
+    relevanceRecall: truePositive + falseNegative ? truePositive / (truePositive + falseNegative) : 0,
+    relevanceF1: 2 * truePositive + falsePositive + falseNegative ? 2 * truePositive / (2 * truePositive + falsePositive + falseNegative) : 0,
+    relevanceExamples: relevanceTotal,
     classificationAccuracy,
     relevanceAccuracy,
     entityPrecision,

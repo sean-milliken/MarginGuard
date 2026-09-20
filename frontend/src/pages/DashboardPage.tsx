@@ -8,6 +8,7 @@ import {
 } from "../components/features/Dashboard";
 import { EconomicSignals } from "../components/features/Dashboard/EconomicSignals";
 import { Sidebar } from "../components/layout/Sidebar";
+import { JudgeDemo } from "../components/JudgeDemo";
 import { getEconomicSignals, type EconomicSignal } from "../lib/api";
 
 export default function DashboardPage() {
@@ -55,7 +56,7 @@ export default function DashboardPage() {
       maximumFractionDigits: 0,
     }).format(cents / 100);
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex app-shell">
       <Sidebar />
       <div className="flex-1 ml-[220px] min-w-0">
         <header className="border-b border-border bg-bg-primary/80 p-6 flex flex-wrap items-center justify-between gap-4">
@@ -88,6 +89,19 @@ export default function DashboardPage() {
           </button>
         </header>
         <main className="p-6 space-y-6">
+          <section className="space-y-3">
+            <h2 className="text-3xl font-semibold">
+              Know what will hit your bottom line before it does.
+            </h2>
+            <p className="text-text-secondary">
+              MarginGuard turns external events into traceable financial impact
+              and recommended actions for manufacturers.
+            </p>
+            <p className="text-sm tracking-wide text-primary-300">
+              DETECT → TRACE → QUANTIFY → DECIDE
+            </p>
+            <JudgeDemo />
+          </section>
           {error && (
             <p role="alert" className="text-error">
               {error}
@@ -113,11 +127,30 @@ export default function DashboardPage() {
             </select>
             {busy && <span role="status">Calculating…</span>}
           </label>
-          <CriticalRiskCard
-            event={currentEvent}
-            scenario={currentScenario}
-            onAnalyze={() => navigate("/analysis")}
-          />
+          {report.affectedUnits === 0 ? (
+            <section className="judge-panel">
+              <h2 className="text-2xl font-semibold">
+                No material exposure detected
+              </h2>
+              <p className="mt-2">{snapshot.event.description}</p>
+              <p className="mt-3 text-success">
+                No action required. No affected supplier, component, or product
+                in the modeled dependencies.
+              </p>
+              <button
+                className="judge-button mt-4"
+                onClick={() => navigate("/analysis")}
+              >
+                Inspect the analysis
+              </button>
+            </section>
+          ) : (
+            <CriticalRiskCard
+              event={currentEvent}
+              scenario={currentScenario}
+              onAnalyze={() => navigate("/analysis")}
+            />
+          )}
           {loadingSignals ? (
             <div className="rounded-xl border border-border bg-bg-tertiary p-5 animate-pulse">
               <div className="h-4 w-40 bg-bg-secondary rounded mb-3" />

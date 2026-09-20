@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSetup } from "../contexts/SetupContext";
+import { FinancialDecision, Provenance } from "../components/FinancialDecision";
+import { JudgeDemo } from "../components/JudgeDemo";
+import { EvaluationReport } from "../components/EvaluationReport";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useData } from "../contexts/DataContext";
 import {
@@ -13,8 +16,15 @@ export default function WorkspacePage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { companyName } = useSetup();
-  const { snapshot, busy, error, runScenario, intelligence, analyzeText } =
-    useData();
+  const {
+    snapshot,
+    analysisRevision,
+    busy,
+    error,
+    runScenario,
+    intelligence,
+    analyzeText,
+  } = useData();
   const { report, company, event } = snapshot;
   const [days, setDays] = useState(event.disruptionDays),
     [severity, setSeverity] = useState(event.unavailableBps / 100),
@@ -116,7 +126,7 @@ export default function WorkspacePage() {
   const panel = "rounded-xl border border-border bg-bg-tertiary p-5 space-y-3";
   const input = "rounded-lg border border-border bg-bg-secondary p-2";
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex app-shell">
       <Sidebar />
       <main className="ml-[220px] p-6 flex-1 min-w-0 space-y-6">
         <div>
@@ -129,6 +139,18 @@ export default function WorkspacePage() {
           </p>
         )}
         {busy && <p role="status">Working…</p>}
+        {["/analysis", "/responses"].includes(pathname) && (
+          <>
+            <JudgeDemo />
+            <FinancialDecision
+              key={JSON.stringify([
+                analysisRevision,
+                snapshot.company,
+                snapshot.event,
+              ])}
+            />
+          </>
+        )}
         {["/sources", "/intelligence"].includes(pathname) && (
           <>
             {newsLoading && <p role="status">Loading news headlines…</p>}
@@ -155,7 +177,10 @@ export default function WorkspacePage() {
           </>
         )}
         {pathname === "/analysis" && (
-          <>
+          <details className={panel} open>
+            <summary className="font-semibold cursor-pointer">
+              Saved scenario &amp; advanced inputs
+            </summary>
             <form
               className={panel}
               onSubmit={(e) => {
@@ -233,7 +258,7 @@ export default function WorkspacePage() {
                     plain: true,
                   },
                   {
-                    label: "Profit at risk",
+                    label: "Contribution margin at risk",
                     value: money(report.contributionMarginAtRiskCents),
                     plain: true,
                   },
@@ -351,10 +376,13 @@ export default function WorkspacePage() {
                 </svg>
               </button>
             </div>
-          </>
+          </details>
         )}
         {pathname === "/responses" && (
-          <>
+          <details className={panel} open>
+            <summary className="font-semibold cursor-pointer">
+              Saved scenario response details
+            </summary>
             <p className="text-sm text-text-secondary">
               Independent alternatives, compared with doing nothing. These are
               simulations; no orders are placed.
@@ -451,7 +479,7 @@ export default function WorkspacePage() {
                 </details>
               </section>
             ))}
-          </>
+          </details>
         )}
         {pathname === "/intelligence" && (
           <>
@@ -593,6 +621,7 @@ export default function WorkspacePage() {
                     <h3 className="text-sm font-semibold mb-2">
                       Entities identified
                     </h3>
+                    <Provenance kind="AI INFERENCE" />
                     <div className="flex flex-wrap gap-2">
                       {intelligence.result.entities.map((entity, i) => (
                         <span
@@ -613,6 +642,7 @@ export default function WorkspacePage() {
                     <h3 className="text-sm font-semibold mb-2">
                       Evidence from the article
                     </h3>
+                    <Provenance kind="SOURCE FACT" />
                     <div className="space-y-2">
                       {intelligence.result.evidence.map((quote, i) => (
                         <blockquote
@@ -878,24 +908,7 @@ export default function WorkspacePage() {
             </section>
           </>
         )}
-        {pathname === "/evals" && (
-          <section className={panel}>
-            <h2 className="font-semibold">How accurate is the AI?</h2>
-            <p className="text-sm text-text-secondary">
-              The repository includes labeled examples and an evaluation harness
-              for measuring classification and entity extraction.
-            </p>
-            <p className="text-sm text-text-secondary">
-              No evaluation results are loaded in this session. Model confidence
-              on an individual analysis is not measured accuracy.
-            </p>
-            <p className="text-sm text-text-secondary">
-              The financial calculations (pricing, profit margins, case counts)
-              use explicit inputs and documented rounding rules. They do not use
-              AI; the result depends on the accuracy of those inputs.
-            </p>
-          </section>
-        )}
+        {pathname === "/evals" && <EvaluationReport />}
       </main>
     </div>
   );

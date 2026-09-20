@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import type {
@@ -17,6 +18,8 @@ import { useSetup } from "./SetupContext";
 import { useAuth } from "./AuthContext";
 interface DataContextType {
   snapshot: ApplicationSnapshot;
+  analysisRevision: number;
+  intelligenceSource: string | null;
   company: Pick<
     CompanyProfile,
     "id" | "name" | "industry" | "suppliers" | "products"
@@ -31,7 +34,7 @@ interface DataContextType {
     days?: number,
     severityPercent?: number,
     supplierId?: string,
-  ) => Promise<void>;
+  ) => Promise<ApplicationSnapshot | undefined>;
   intelligence: IntelligenceOutcome | null;
   analyzeText: (text: string) => Promise<void>;
 }
@@ -40,16 +43,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const { done, companyName } = useSetup();
   const [snapshot, setSnapshot] = useState<ApplicationSnapshot | null>(null);
+  const [analysisRevision, setAnalysisRevision] = useState(0);
+  const [intelligenceSource, setIntelligenceSource] = useState<string | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   const [intelligence, setIntelligence] = useState<IntelligenceOutcome | null>(
     null,
   );
   const [attempt, setAttempt] = useState(0);
+  const requestVersion = useRef(0);
   useEffect(() => {
+    requestVersion.current++;
+    setBusy(false);
     if (!isAuthenticated || !done) {
       setSnapshot(null);
       setIntelligence(null);
+      setIntelligenceSource(null);
       setError(null);
       return;
     }
@@ -64,6 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       active = false;
+      requestVersion.current++;
     };
   }, [isAuthenticated, done, companyName, attempt]);
   const runScenario = useCallback(
@@ -74,6 +86,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       supplierId?: string,
     ) => {
       if (!snapshot) return;
+      const version = ++requestVersion.current;
       setBusy(true);
       setError(null);
       try {
@@ -83,6 +96,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : {
                 event: {
                   ...snapshot.event,
+                  type: "logistics-disruption",
                   id: "custom-disruption",
                   disruptionDays: days,
                   unavailableBps: Math.round((severityPercent ?? 100) * 100),
@@ -93,12 +107,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 },
               };
         const result = await request<AnalysisRecord>("/analyses", input);
+        if (version !== requestVersion.current) return;
         setSnapshot(result.snapshot);
+        setAnalysisRevision((previous) => previous + 1);
         setIntelligence(null);
+        setIntelligenceSource(null);
+        return result.snapshot;
       } catch (err) {
+        if (version !== requestVersion.current) return;
         setError(err instanceof Error ? err.message : "Analysis failed");
       } finally {
-        setBusy(false);
+        if (version === requestVersion.current) setBusy(false);
       }
     },
     [snapshot],
@@ -106,22 +125,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const analyzeText = useCallback(
     async (text: string) => {
       if (!snapshot) return;
+      const version = ++requestVersion.current;
       setBusy(true);
       setError(null);
       setIntelligence(null);
+      setIntelligenceSource(text);
       try {
-        setIntelligence(
-          await request<IntelligenceOutcome>("/intelligence", {
-            articleText: text,
-            analysis: { event: snapshot.event },
-          }),
-        );
+        const outcome = await request<IntelligenceOutcome>("/intelligence", {
+          articleText: text,
+          analysis: { event: snapshot.event },
+        });
+        if (version === requestVersion.current) setIntelligence(outcome);
       } catch (err) {
+        if (version !== requestVersion.current) return;
         setError(
           err instanceof Error ? err.message : "Intelligence analysis failed",
         );
       } finally {
-        setBusy(false);
+        if (version === requestVersion.current) setBusy(false);
       }
     },
     [snapshot],
@@ -187,7 +208,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
   const currentEvent: ExternalEvent = {
     id: event.id,
-    title: "Supplier freight disruption",
+    title:
+      event.type === "irrelevant"
+        ? "No material exposure detected"
+        : "Supplier freight disruption",
     description: event.description,
     occurred: new Date("2026-09-19T12:00:00Z"),
     type: "port_disruption",
@@ -228,6 +252,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     <DataContext.Provider
       value={{
         snapshot,
+        analysisRevision,
+        intelligenceSource,
         company,
         events: [currentEvent],
         currentScenario,
