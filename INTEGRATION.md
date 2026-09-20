@@ -37,7 +37,7 @@ Open http://127.0.0.1:3001. `build:demo` explicitly selects demo auth; normal de
 
 Copy `.env.example` to `.env` in the repository root and set `NVIDIA_API_KEY` locally. Restart the Node API. Optionally set `NVIDIA_NEMOTRON_MODEL`. Never put credentials into frontend `VITE_` variables or commit `.env`.
 
-Only clicking **Analyze source** sends the submitted article and qualitative business/response descriptions to NVIDIA. The application calls the existing `analyzeArticle` subsystem. Two bounded attempts (initial and schema correction, each with a 10-second transport timeout) fit the API request window; automatic SDK retries are disabled. The standalone evaluation harness retains its explicit transport retries.
+Only clicking **Analyze source** sends the submitted article and qualitative business/response descriptions to NVIDIA. The application calls the existing `analyzeArticle` subsystem. Initial analysis and any schema correction share a total 25-second budget to fit the API request window; automatic SDK retries are disabled. The standalone evaluation harness retains its explicit transport retries.
 
 Model evidence must be an exact substring of the submitted text, and option rankings must use known, unique options. Invalid or unavailable model output is reported as an error, never replaced with fabricated intelligence. Live NVIDIA inference and measured eval scores require a working key; the automated integration suite injects a controlled analyzer instead of making paid API calls.
 
@@ -133,7 +133,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-If Chrome is already installed, use `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`. Browser tests start and stop the local app automatically and cover real API financial recalculation, route navigation/refresh, API failure/retry, and logout/sign-in. Unit tests cover 13 financial scenarios/formulas, 21 Nemotron schema/metric cases, and 30 API, economic signal/impact, persistence, and cloud-routing cases. Eight browser tests cover onboarding, saved labels, changed navigation, financial scenarios, news, economic savings, failure/retry, and authentication.
+If Chrome is already installed, use `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`. Browser tests start and stop the local app automatically and cover real API financial recalculation, route navigation/refresh, API failure/retry, and logout/sign-in. Unit tests cover 13 financial scenarios/formulas, 24 Nemotron schema, metric, and timeout cases, and 30 API, economic signal/impact, persistence, and cloud-routing cases. Eight browser tests cover onboarding, saved labels, changed navigation, financial scenarios, news, economic savings, failure/retry, and authentication.
 
 Do not publish a demo-auth build to the protected AWS deployment. `npm run build:demo` exists specifically for a local, offline-capable hackathon presentation.
 

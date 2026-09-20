@@ -147,6 +147,10 @@ export async function analyzeArticle(
   input: AnalysisInput,
   config?: NvidiaClientConfig,
 ): Promise<AnalysisOutcome> {
+  const deadlineMs =
+    config?.totalTimeoutMs === undefined
+      ? undefined
+      : Date.now() + config.totalTimeoutMs;
   const client = createNvidiaClient(config);
   const modelId = resolveModelId(config);
   const promptInput: PromptInput = input;
@@ -157,6 +161,7 @@ export async function analyzeArticle(
     modelId,
     messages,
     config?.maxAttempts,
+    deadlineMs,
   );
 
   if (!attempt1.success) {
@@ -188,6 +193,7 @@ export async function analyzeArticle(
     modelId,
     correctionMessages,
     config?.maxAttempts,
+    deadlineMs,
   );
 
   if (!attempt2.success) {
