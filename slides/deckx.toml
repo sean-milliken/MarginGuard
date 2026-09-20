@@ -1,0 +1,13 @@
+title = "MarginGuard"
+theme = "dark"
+
+tabs = [
+  { id = "intro", label = "Intro" },
+  { id = "problem", label = "Problem" },
+  { id = "solution", label = "Solution" },
+  { id = "architecture", label = "Architecture" },
+  { id = "challenges", label = "Challenges" },
+  { id = "validation", label = "Validation" },
+  { id = "demo", label = "Demo" },
+  { id = "questions", label = "Questions" },
+]
