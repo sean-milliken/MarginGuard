@@ -3,6 +3,7 @@ import { dynamoStore } from "./store";
 import { createFredClient } from "./fred/client";
 import { dynamoCache, memoryCache } from "./fred/cache";
 import { createFredService } from "./fred/service";
+import { createNewsService } from "./news/service";
 
 const api = (async () => {
   // Load NVIDIA secret for Nemotron AI
@@ -35,6 +36,7 @@ const api = (async () => {
   return createApi({
     store: await dynamoStore(process.env.ANALYSES_TABLE!),
     fredService,
+    newsService: createNewsService(),
   });
 })();
 export async function handler(event: {

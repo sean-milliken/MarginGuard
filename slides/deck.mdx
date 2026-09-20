@@ -1,0 +1,138 @@
+import { Slide } from "deckx"
+
+<Slide tab="intro">
+
+# MarginGuard
+
+### Supply Chain Disruption Risk — Quantified in Real Time
+
+**Vincent Zhu · Tanishq Bansod · Sean Milliken · Lalit More**
+
+</Slide>
+
+<Slide tab="problem">
+
+# The Problem
+
+Businesses face supply chain disruptions every day - but **don't know the financial impact until it's too late**.
+
+- A delayed supplier for **15 days** can trigger cascading losses across revenue, margin, and procurement
+- Finance teams rely on gut feel or spreadsheets - no real-time calculation
+- Commodity price signals (aluminum, packaging, energy) are public but **never connected to company financials**
+- By the time a response is evaluated, the cost window has already closed
+
+> **$648,000 revenue at risk** from a single 15-day logistics disruption - for a mid-size beverage company
+
+</Slide>
+
+<Slide tab="solution">
+
+# The Solution
+
+**MarginGuard** is a real-time supply chain risk platform that calculates the exact financial exposure from a disruption - before you decide how to respond.
+
+- **Deterministic financial engine** - no LLM guessing; every dollar is traceable to inputs
+- **Scenario modeling** - compare 7-, 15-, and 30-day disruptions instantly
+- **FRED integration** - live commodity prices (aluminum, corrugated, energy) from the Federal Reserve mapped to your components
+- **Nemotron intelligence** - NVIDIA LLM classifies news articles and ranks qualitative response options
+- **Response comparison** - doing nothing vs. alternate supply, with exact cost/benefit ($19,500 extra cost → $187,500 net benefit)
+
+</Slide>
+
+<Slide tab="architecture">
+
+# Architecture
+
+```
+FRED API (Federal Reserve)
+        ↓
+  Backend FRED Client          NVIDIA Nemotron
+  (retry / timeout)                  ↑
+        ↓                     Intelligence API
+  DynamoDB Cache                     |
+  (7-day TTL)              ──────────┘
+        ↓
+  Economic Signal Detection
+        ↓
+  Financial Engine (TypeScript · BigInt · deterministic)
+        ↓
+  Node.js API (Lambda-ready · Zod validation)
+        ↓
+  React Frontend (Vite · Three.js · Framer Motion)
+        ↓
+  AWS: Cognito · DynamoDB · S3 · CDK · Amplify
+```
+
+**Key design principles:** money in integer cents end-to-end · no LLM in financial path · transparent source labeling
+
+</Slide>
+
+<Slide tab="challenges">
+
+# Challenges
+
+- **Determinism vs. AI** - separating the financial engine (must be exact) from Nemotron intelligence (qualitative only); model evidence must be an exact substring of submitted text
+- **FRED data reliability** - FRED returns `"."` for missing observations; retry logic with exponential backoff (3s, 8s) and 10-second transport timeout
+- **Money precision** - all API values in integer cents; UI converts for display only; BigInt throughout the financial engine prevents floating-point drift
+- **Demo vs. production auth** - `VITE_MOCK_MODE=true` bypasses Cognito for local demos; production builds require full Cognito JWT on every route except `/health`
+- **Schema correctness under LLM variance** - two bounded Nemotron attempts (initial + schema correction); invalid output is reported as an error, never fabricated
+
+</Slide>
+
+<Slide tab="validation">
+
+# Validation
+
+**13 financial scenarios** validated across the unit test suite covering:
+
+| Scenario | Metric |
+|---|---|
+| Zero disruption | Produces zero exposure |
+| 7 / 15 / 30-day logistics | Revenue & contribution at risk |
+| Proportional component allocation | Rounding invariants |
+| Alternate supply net benefit | $187,500 for default event |
+| FRED signal severity thresholds | Low 2% · Medium 5% · High/Critical 10% |
+
+**21 Nemotron schema/metric cases** + API/model-boundary/persistence/cloud-routing behavior
+
+**End-to-end browser tests** via Playwright: real API financial recalculation, route navigation/refresh, API failure/retry, logout/sign-in
+
+</Slide>
+
+<Slide tab="demo">
+
+# Live Demo
+
+**Default scenario:** Steel City Beverages · 15-day logistics disruption
+
+1. **Dashboard** - $648,000 revenue at risk · $276,000 contribution at risk
+2. **Switch scenarios** - 7 / 15 / 30-day; live API recalculation
+3. **Simulate Event** - choose supplier, duration, unavailable-delivery %
+4. **Responses** - doing nothing vs. alternate supply: net benefit $187,500
+5. **FRED Signals** - live aluminum, packaging, energy commodity indicators
+6. **Intelligence** - paste a news article; Nemotron classifies risk and ranks options
+
+```sh
+npm run dev   # http://127.0.0.1:5173
+```
+
+</Slide>
+
+<Slide tab="questions">
+
+# Thank You
+
+**MarginGuard** - Know your exposure before you decide.
+
+- Deterministic financial engine
+- Real-time FRED commodity signals
+- NVIDIA Nemotron qualitative intelligence
+- Fully open source · AWS-native · production-ready
+
+---
+
+**Questions?**
+
+Vincent Zhu · Tanishq Bansod · Sean Milliken · Lalit More
+
+</Slide>

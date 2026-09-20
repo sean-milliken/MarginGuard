@@ -71,6 +71,21 @@ export interface EconomicImpact {
   }[];
 }
 
+// News Types
+export interface NewsArticle {
+  url: string;
+  title: string;
+  seendate: string; // "20260919T120000Z"
+  domain: string;
+  language: string;
+  sourcecountry: string;
+}
+
+// News API
+export async function getNews(): Promise<NewsArticle[]> {
+  return request<NewsArticle[]>("/news");
+}
+
 // FRED API Functions
 export async function getEconomicSignals(): Promise<EconomicSignal[]> {
   return request<EconomicSignal[]>("/fred/signals");
