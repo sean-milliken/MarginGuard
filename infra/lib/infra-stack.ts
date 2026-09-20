@@ -272,6 +272,7 @@ export class InfraStack extends cdk.Stack {
       applicationFn,
     );
     addRoute("SourcesInt", apigwv2.HttpMethod.POST, "/sources", sourcesFn);
+    addRoute("NewsInt", apigwv2.HttpMethod.GET, "/news", applicationFn);
     addRoute(
       "AnalysesInt",
       apigwv2.HttpMethod.POST,
