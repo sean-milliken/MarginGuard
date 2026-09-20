@@ -1,5 +1,5 @@
 import { searchNews } from "./client";
-import type { NewsService } from "./types";
+import type { NewsArticle, NewsService } from "./types";
 
 // Broad query relevant to Steel City Beverages supply chain risks
 const SUPPLY_CHAIN_QUERY = "supply chain disruption";
