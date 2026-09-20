@@ -1,14 +1,48 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EVAL_DATASET } from "../../../nemotron/src/eval/dataset";
 import {
   EvalResultsSchema,
   type EvalResults,
 } from "../../../nemotron/src/schemas/eval";
 import { calculateMetrics } from "../../../nemotron/src/eval/metrics";
+import { request } from "../lib/api";
+
+function parseResults(raw: unknown): EvalResults {
+  const parsed = EvalResultsSchema.parse(raw);
+  if (
+    !parsed.results.length ||
+    parsed.results.some((result) => result.success && !result.predicted)
+  )
+    throw new Error("Results must include recorded predictions.");
+  const ids = parsed.results.map((result) => result.id);
+  if (
+    new Set(ids).size !== ids.length ||
+    ids.some((id) => !EVAL_DATASET.some((item) => item.id === id))
+  )
+    throw new Error("Results must contain unique IDs from this evaluation dataset.");
+  return parsed;
+}
 
 export function EvaluationReport() {
   const [report, setReport] = useState<EvalResults | null>(null);
   const [error, setError] = useState("");
+  const [localRun, setLocalRun] = useState(false);
+  useEffect(() => {
+    let active = true;
+    request<unknown>("/eval-results")
+      .then((raw) => {
+        const parsed = parseResults(raw);
+        if (active) {
+          setReport(parsed);
+          setLocalRun(true);
+        }
+      })
+      // A production deployment intentionally has no local output file.
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
   const distribution = EVAL_DATASET.reduce<Record<string, number>>(
     (counts, item) => {
       counts[item.groundTruth.eventCategory] =
@@ -47,9 +81,11 @@ export function EvaluationReport() {
         ))}
       </div>
       <p className="text-sm text-text-secondary">
-        Load the JSON produced by <code>npm run eval:nemotron</code>. Metrics
-        are recomputed from recorded predictions and repository labels. No
-        keyword baseline is implemented.
+        {localRun
+          ? "Loaded the local harness output."
+          : "Load the JSON produced by npm run eval:nemotron."} Metrics are
+        recomputed from recorded predictions and repository labels. No keyword
+        baseline is implemented.
       </p>
       <label className="block">
         Load evaluation results{" "}
@@ -65,25 +101,9 @@ export function EvaluationReport() {
             try {
               if (file.size > 5_000_000)
                 throw new Error("Choose a results file smaller than 5 MB.");
-              const parsed = EvalResultsSchema.parse(
-                JSON.parse(await file.text()),
-              );
-              if (
-                !parsed.results.length ||
-                parsed.results.some(
-                  (result) => result.success && !result.predicted,
-                )
-              )
-                throw new Error("Results must include recorded predictions.");
-              const ids = parsed.results.map((r) => r.id);
-              if (
-                new Set(ids).size !== ids.length ||
-                ids.some((id) => !EVAL_DATASET.some((item) => item.id === id))
-              )
-                throw new Error(
-                  "Results must contain unique IDs from this evaluation dataset.",
-                );
+              const parsed = parseResults(JSON.parse(await file.text()));
               setReport(parsed);
+              setLocalRun(false);
             } catch {
               setError(
                 "Could not load results. Use valid harness JSON with unique IDs from the current dataset (maximum 5 MB).",

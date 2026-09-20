@@ -22,6 +22,9 @@ const api = createApi({
 const staticRoot = resolve(
   fileURLToPath(new URL("../../../frontend/dist", import.meta.url)),
 );
+const localEvaluationResults = resolve(
+  fileURLToPath(new URL("../../../nemotron/eval-results.json", import.meta.url)),
+);
 const types: Record<string, string> = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -35,6 +38,27 @@ const server = createServer(async (req, res) => {
   try {
     const path = new URL(req.url ?? "/", "http://localhost").pathname;
     if (path.startsWith("/api/")) {
+      // Local evaluation artifacts are deliberately ignored by Git. Serve only
+      // the fixed harness output path so a judge can see measured results
+      // without uploading a file. AWS deployments do not contain this file.
+      if (path === "/api/eval-results" && req.method === "GET") {
+        try {
+          const data = await readFile(localEvaluationResults);
+          if (data.byteLength > 5_000_000) throw new Error("too large");
+          res.writeHead(200, {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          });
+          res.end(data);
+        } catch {
+          res.writeHead(404, {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          });
+          res.end(JSON.stringify({ error: "No local evaluation results found." }));
+        }
+        return;
+      }
       if (
         req.method === "POST" &&
         !req.headers["content-type"]?.startsWith("application/json")

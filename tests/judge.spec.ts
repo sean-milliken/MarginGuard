@@ -4,6 +4,9 @@ import { calculateMetrics } from "../nemotron/src/eval/metrics";
 import type { EvalResultItem } from "../nemotron/src/schemas/eval";
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/eval-results", (route) =>
+    route.fulfill({ status: 404, json: { error: "No local run" } }),
+  );
   await page.route("**/api/fred/signals", (route) =>
     route.fulfill({
       status: 503,
