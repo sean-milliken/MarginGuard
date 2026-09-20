@@ -10,7 +10,6 @@ import {
 import { memoryStore, type AnalysisStore } from "./store";
 import { steelCityBeverages } from "../../financial-engine/src/steel-city-beverages";
 import type { FredService } from "./fred/service";
-import { isFredAvailable } from "./fred/service";
 import type { NewsService } from "./news/types";
 export interface ApiRequest {
   method: string;
@@ -75,7 +74,8 @@ export function createApi(
       if (method === "GET" && route === "/sources")
         return reply(200, [createSnapshot().source]);
       if (method === "GET" && route === "/news") {
-        if (!newsService) return reply(200, []);
+        if (!newsService)
+          return reply(503, { error: "News service is unavailable." });
         try {
           const articles = await newsService.getSupplyChainNews();
           return reply(200, articles);
@@ -84,7 +84,9 @@ export function createApi(
             "News fetch failed:",
             err instanceof Error ? err.message : err,
           );
-          return reply(200, []);
+          return reply(502, {
+            error: "News headlines could not be loaded. Please retry.",
+          });
         }
       }
       if (method === "GET" && route.startsWith("/analyses/")) {
@@ -95,7 +97,7 @@ export function createApi(
       }
       // FRED economic data endpoints
       if (method === "GET" && route === "/fred/series") {
-        if (!fredService || !isFredAvailable) {
+        if (!fredService) {
           return reply(503, {
             error: "FRED integration not configured. Set FRED_API_KEY.",
           });

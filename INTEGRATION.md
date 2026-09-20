@@ -24,20 +24,20 @@ Open http://127.0.0.1:3001. `build:demo` explicitly selects demo auth; normal de
 
 ## Walkthrough
 
-1. Dashboard: inspect the default 15-day logistics disruption ($648,000 revenue and $276,000 contribution at risk).
+1. Choose **Try the demo** on the setup screen (or personalize its display label; financial inputs remain synthetic). Dashboard: inspect the default 15-day logistics disruption ($648,000 revenue and $276,000 contribution at risk).
 2. Switch among 7-, 15-, and 30-day scenarios. The UI calls the API and replaces the report with calculated results.
-3. Simulate Event / Analysis: choose the disrupted supplier, duration, and unavailable-delivery percentage. Zero disruption produces zero exposure. Read the supplier → component → product path and calculation steps.
-4. Responses: compare doing nothing with capacity-limited alternate supply. For the default event, extra cost is $19,500 and net benefit is $187,500. No procurement actions are executed.
+3. Model Impact: choose the disrupted supplier, duration, and unavailable-delivery percentage. Zero disruption produces zero exposure. Read the supplier → component → product path and calculation steps.
+4. Recovery Options: compare doing nothing with capacity-limited alternate supply. For the default event, extra cost is $19,500 and net benefit is $187,500. No procurement actions are executed.
 5. Company: inspect monthly volumes, prices, variable costs, supplier dependencies, alternate premiums, and shipping costs.
 6. Sources: inspect the explicitly labeled synthetic scenario brief.
-7. Intelligence: submit source text for Nemotron classification, entities, evidence, and qualitative option rankings when configured. This never changes the financial report or its numeric assumptions.
-8. Evals: explains how to run the existing evaluation harness; no invented evaluation scores are shown.
+7. News Analysis: submit source text for Nemotron classification, entities, evidence, and qualitative option rankings when configured. This never changes the financial report or its numeric assumptions.
+8. AI Accuracy: explains how to run the existing evaluation harness; no invented evaluation scores are shown.
 
 ## Nemotron configuration
 
 Copy `.env.example` to `.env` in the repository root and set `NVIDIA_API_KEY` locally. Restart the Node API. Optionally set `NVIDIA_NEMOTRON_MODEL`. Never put credentials into frontend `VITE_` variables or commit `.env`.
 
-Only clicking **Analyze source** sends the submitted article and qualitative business/response descriptions to NVIDIA. The application calls the existing `analyzeArticle` subsystem. Two bounded attempts (initial and schema correction, each with a 10-second transport timeout) fit the API request window; automatic SDK retries are disabled. The standalone evaluation harness retains its explicit transport retries.
+Only clicking **Analyze source** sends the submitted article and qualitative business/response descriptions to NVIDIA. The application calls the existing `analyzeArticle` subsystem. Initial analysis and any schema correction share a total 25-second budget to fit the API request window; automatic SDK retries are disabled. The standalone evaluation harness retains its explicit transport retries.
 
 Model evidence must be an exact substring of the submitted text, and option rankings must use known, unique options. Invalid or unavailable model output is reported as an error, never replaced with fabricated intelligence. Live NVIDIA inference and measured eval scores require a working key; the automated integration suite injects a controlled analyzer instead of making paid API calls.
 
@@ -76,6 +76,8 @@ FRED integration is optional. Without a configured API key, the application cont
 | GET | `/events`, `/events/{id}` | Scenario events |
 | GET | `/scenarios` | Supported logistics scenarios |
 | GET | `/sources` | Synthetic brief |
+| GET | `/news` | Google News RSS headlines (five-minute cache; upstream errors reported explicitly) |
+| GET | `/fred/signals`, `/fred/impact/{id}` | Latest available economic observations and deterministic modeled component impact |
 | POST | `/analyses` | Validate inputs, calculate, save and return `{analysisId, companyId, createdAt, snapshot}` |
 | GET | `/analyses/{id}` | Saved analysis or 404 |
 | POST | `/scenarios/{id}/run` | Calculate a named scenario |
@@ -131,6 +133,12 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-If Chrome is already installed, use `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`. Browser tests start and stop the local app automatically and cover real API financial recalculation, route navigation/refresh, API failure/retry, and logout/sign-in. Unit tests cover 13 financial scenarios/formulas, 21 Nemotron schema/metric cases, and API/model-boundary/persistence/cloud-routing behavior.
+If Chrome is already installed, use `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`. Browser tests start and stop the local app automatically and cover real API financial recalculation, route navigation/refresh, API failure/retry, and logout/sign-in. Unit tests cover 13 financial scenarios/formulas, 24 Nemotron schema, metric, and timeout cases, and 30 API, economic signal/impact, persistence, and cloud-routing cases. Eight browser tests cover onboarding, saved labels, changed navigation, financial scenarios, news, economic savings, failure/retry, and authentication.
 
 Do not publish a demo-auth build to the protected AWS deployment. `npm run build:demo` exists specifically for a local, offline-capable hackathon presentation.
+
+## UI-fixes completion
+
+The revised navigation and setup flow preserve the news integration in main. Company labels persist locally and remain explicitly associated with the synthetic data; full company-data import is not implied. Setup loads even when the backend is unavailable, and invalid saved setup resets safely. Recovery comparisons retain the do-nothing baseline and calculation details. Source-fetch failures are shown separately from empty data. Economic cost decreases are shown as savings, and dated signal IDs resolve correctly to their impact.
+
+For local economic observations, set `FRED_API_KEY` in the root `.env` and restart the API. The local server now initializes the same FRED service as Lambda. No key means an explicit unavailable response. The existing FRED formula tests now run in `npm test` and are type-checked instead of being excluded. News and FRED browser responses are stubbed in tests so CI does not depend on external services; the financial scenario API remains real.

@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useData } from "../contexts/DataContext";
+import { useSetup } from "../contexts/SetupContext";
 import {
   CriticalRiskCard,
   SupplierExposure,
@@ -11,6 +12,7 @@ import { getEconomicSignals, type EconomicSignal } from "../lib/api";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { companyName } = useSetup();
   const {
     company,
     currentScenario,
@@ -23,16 +25,19 @@ export default function DashboardPage() {
 
   const [economicSignals, setEconomicSignals] = useState<EconomicSignal[]>([]);
   const [loadingSignals, setLoadingSignals] = useState(true);
+  const [signalsError, setSignalsError] = useState<string | null>(null);
 
-  // Fetch economic signals on mount
   useEffect(() => {
     const fetchSignals = async () => {
       try {
         const signals = await getEconomicSignals();
         setEconomicSignals(signals);
       } catch (err) {
-        console.error("Error fetching economic signals:", err);
-        // Silently fail - FRED may not be configured
+        setSignalsError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load economic indicators",
+        );
       } finally {
         setLoadingSignals(false);
       }
@@ -56,17 +61,30 @@ export default function DashboardPage() {
         <header className="border-b border-border bg-bg-primary/80 p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-primary-300">
-              Financial Command Center
+              Supply Chain Risk Monitor
             </h1>
             <p className="text-sm text-text-secondary">
-              {company.name} · synthetic company, calculated results
+              {companyName} · synthetic manufacturing model
             </p>
           </div>
           <button
-            className="rounded-lg bg-primary-600 px-4 py-2 text-white"
-            onClick={() => navigate("/analysis")}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
+            onClick={() => navigate("/intelligence")}
           >
-            Simulate Event
+            Analyze a disruption
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
+            </svg>
           </button>
         </header>
         <main className="p-6 space-y-6">
@@ -76,7 +94,7 @@ export default function DashboardPage() {
             </p>
           )}
           <label className="flex flex-wrap items-center gap-3 text-sm">
-            Scenario
+            Model a disruption
             <select
               aria-label="Scenario"
               disabled={busy}
@@ -100,21 +118,42 @@ export default function DashboardPage() {
             scenario={currentScenario}
             onAnalyze={() => navigate("/analysis")}
           />
-          {!loadingSignals && economicSignals.length > 0 && (
+          {loadingSignals ? (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5 animate-pulse">
+              <div className="h-4 w-40 bg-bg-secondary rounded mb-3" />
+              <div className="h-3 w-64 bg-bg-secondary rounded" />
+            </div>
+          ) : signalsError ? (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
+              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
+              <p className="text-xs text-text-secondary">{signalsError}</p>
+            </div>
+          ) : economicSignals.length > 0 ? (
             <EconomicSignals signals={economicSignals} />
+          ) : (
+            <div className="rounded-xl border border-border bg-bg-tertiary p-5">
+              <p className="text-sm font-semibold mb-1">Economic Indicators</p>
+              <p className="text-xs text-text-secondary">
+                No economic observations are available to assess market
+                movements.
+              </p>
+            </div>
           )}
           <section
             className="grid sm:grid-cols-3 gap-4"
             aria-label="Financial overview"
           >
             {[
-              { label: "Cash impact", value: money(report.cashImpactCents) },
               {
-                label: "Best net response benefit",
+                label: "Cash change vs. normal month",
+                value: money(report.cashImpactCents),
+              },
+              {
+                label: "Best recovery option saves",
                 value: money(best.netFinancialBenefitCents),
               },
               {
-                label: "Affected cases",
+                label: "Product cases affected",
                 value: report.affectedUnits.toLocaleString(),
               },
             ].map((metric) => (
@@ -130,15 +169,21 @@ export default function DashboardPage() {
           <div className="grid lg:grid-cols-2 gap-6">
             <SupplierExposure suppliers={company.suppliers} />
             <section className="rounded-xl border border-border bg-bg-tertiary p-5">
-              <h2 className="font-semibold mb-3">Response comparison</h2>
-              <p className="text-sm text-text-secondary mb-4">
+              <h2 className="font-semibold mb-1">Best recovery option</h2>
+              <p className="text-xs text-text-secondary mb-3">
+                If you act on this disruption, here's your best move
+              </p>
+              <p className="text-sm text-text-secondary mb-3">
                 {best.description}
               </p>
               <p className="text-2xl text-success">
-                {money(best.netFinancialBenefitCents)} net benefit
+                {money(best.netFinancialBenefitCents)}
+              </p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                net financial benefit vs. no action
               </p>
               <button
-                className="mt-4 underline text-primary-300"
+                className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors"
                 onClick={() => navigate("/responses")}
               >
                 Compare response options
@@ -146,7 +191,12 @@ export default function DashboardPage() {
             </section>
           </div>
           <section className="rounded-xl border border-border bg-bg-tertiary p-5">
-            <h2 className="font-semibold mb-4">Monthly product contribution</h2>
+            <h2 className="font-semibold mb-1">
+              Monthly contribution by product
+            </h2>
+            <p className="text-xs text-text-secondary mb-4">
+              Sales less variable costs, before fixed costs, interest, and tax.
+            </p>
             <div className="grid sm:grid-cols-3 gap-5">
               {company.products.map((p) => (
                 <div key={p.id}>
@@ -156,18 +206,12 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-sm text-text-secondary">
                     {p.unitsPerMonth.toLocaleString()} cases ·{" "}
-                    {money(p.marginPerUnit * 100)}/case
+                    {money(p.marginPerUnit * 100)} contribution/case
                   </p>
                 </div>
               ))}
             </div>
           </section>
-          <p className="text-xs text-text-secondary">
-            Cash impact assumes same-month collections and avoidable variable
-            payments. Supplier dependency shows the largest share of an
-            individual component. All amounts come from explicit scenario
-            inputs.
-          </p>
         </main>
       </div>
     </div>

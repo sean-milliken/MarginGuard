@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import { expect } from "expect";
 import { calculateComponentImpact } from "../impact";
 import type { EconomicSignal } from "../types";
-import type { Company, Component } from "../../../../financial-engine/src/types";
+import type {
+  Company,
+  Component,
+} from "../../../../financial-engine/src/types";
 
 describe("calculateComponentImpact", () => {
   const mockSignal: EconomicSignal = {
@@ -65,7 +69,11 @@ describe("calculateComponentImpact", () => {
   };
 
   it("calculates projected cost using BigInt patterns", () => {
-    const impact = calculateComponentImpact(mockSignal, mockComponent, mockCompany);
+    const impact = calculateComponentImpact(
+      mockSignal,
+      mockComponent,
+      mockCompany,
+    );
 
     // 5% increase on $1.00 = $1.05
     expect(impact.currentCostCents).toBe(100);
@@ -74,21 +82,33 @@ describe("calculateComponentImpact", () => {
   });
 
   it("calculates monthly volume affected across all products", () => {
-    const impact = calculateComponentImpact(mockSignal, mockComponent, mockCompany);
+    const impact = calculateComponentImpact(
+      mockSignal,
+      mockComponent,
+      mockCompany,
+    );
 
     // 1000 products * 2 units per product = 2000 component units
     expect(impact.monthlyVolumeAffected).toBe(2000);
   });
 
   it("calculates total monthly impact correctly", () => {
-    const impact = calculateComponentImpact(mockSignal, mockComponent, mockCompany);
+    const impact = calculateComponentImpact(
+      mockSignal,
+      mockComponent,
+      mockCompany,
+    );
 
     // 2000 units * $0.05 increase = $100 monthly impact
     expect(impact.monthlyImpactCents).toBe(10000); // 10000 cents = $100
   });
 
   it("calculates per-product contribution margin impact", () => {
-    const impact = calculateComponentImpact(mockSignal, mockComponent, mockCompany);
+    const impact = calculateComponentImpact(
+      mockSignal,
+      mockComponent,
+      mockCompany,
+    );
 
     expect(impact.affectedProducts).toHaveLength(1);
     expect(impact.affectedProducts[0].productId).toBe("product-1");
@@ -98,11 +118,17 @@ describe("calculateComponentImpact", () => {
     // Product uses 2 units, cost increase is $0.05/unit
     // Product cost increase: 2 * $0.05 = $0.10 per product
     // Monthly impact: 1000 products * $0.10 = $100
-    expect(impact.affectedProducts[0].contributionMarginImpactCents).toBe(10000);
+    expect(impact.affectedProducts[0].contributionMarginImpactCents).toBe(
+      10000,
+    );
   });
 
   it("includes calculation steps for transparency", () => {
-    const impact = calculateComponentImpact(mockSignal, mockComponent, mockCompany);
+    const impact = calculateComponentImpact(
+      mockSignal,
+      mockComponent,
+      mockCompany,
+    );
 
     expect(impact.calculationSteps).toBeDefined();
     expect(impact.calculationSteps.length).toBeGreaterThan(0);

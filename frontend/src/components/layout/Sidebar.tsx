@@ -2,41 +2,49 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSetup } from "../../contexts/SetupContext";
 
 const navItems = [
   {
     path: "/",
     label: "Dashboard",
+    sub: "Risk overview",
     icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1",
   },
   {
     path: "/intelligence",
-    label: "Intelligence",
+    label: "News Analysis",
+    sub: "Analyze an article",
     icon: "M13 10V3L4 14h7v7l9-11h-7z",
   },
   {
     path: "/analysis",
-    label: "Analysis",
+    label: "Model Impact",
+    sub: "Calculate the loss",
     icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
   },
   {
     path: "/responses",
-    label: "Responses",
+    label: "Recovery Options",
+    sub: "Compare your choices",
     icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
   },
   {
     path: "/sources",
     label: "Sources",
+    sub: "News & observations",
     icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
   },
   {
     path: "/company",
-    label: "Company",
+    label: "Company Data",
+    sub: "Products & suppliers",
     icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
   },
   {
     path: "/evals",
-    label: "Evals",
+    label: "AI Accuracy",
+    sub: "Model eval results",
     icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   },
 ];
@@ -45,6 +53,12 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { userAttributes } = useAuth();
+  const { companyName, resetSetup } = useSetup();
+
+  const handleSwitch = () => {
+    resetSetup();
+    navigate("/setup", { replace: true });
+  };
 
   return (
     <motion.aside
@@ -53,8 +67,8 @@ export const Sidebar: React.FC = () => {
       animate={{ x: 0 }}
       transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-6 py-6">
+      {/* Logo + company */}
+      <div className="flex items-center gap-2.5 px-6 pt-6 pb-3">
         <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-600/20">
           <svg
             className="w-5 h-5 text-white"
@@ -75,8 +89,28 @@ export const Sidebar: React.FC = () => {
         </span>
       </div>
 
+      {/* Company name pill */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center justify-between rounded-lg bg-bg-tertiary border border-border px-3 py-2">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wide text-text-tertiary font-medium">
+              Modeling
+            </p>
+            <p className="text-xs font-semibold text-text-primary truncate">
+              {companyName}
+            </p>
+          </div>
+          <button
+            onClick={handleSwitch}
+            className="ml-2 text-[10px] text-primary-400 hover:text-primary-300 whitespace-nowrap transition-colors"
+          >
+            Switch
+          </button>
+        </div>
+      </div>
+
       {/* Nav Items */}
-      <nav className="flex-1 px-3 space-y-1 mt-2">
+      <nav className="flex-1 px-3 space-y-1">
         {navItems.map((item, index) => {
           const isActive = location.pathname === item.path;
           return (
@@ -100,7 +134,7 @@ export const Sidebar: React.FC = () => {
                 />
               )}
               <svg
-                className="w-[18px] h-[18px] shrink-0"
+                className="w-[18px] h-[18px] shrink-0 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -112,7 +146,12 @@ export const Sidebar: React.FC = () => {
                   d={item.icon}
                 />
               </svg>
-              {item.label}
+              <span className="flex flex-col items-start">
+                <span>{item.label}</span>
+                <span className="text-[10px] font-normal text-text-tertiary leading-tight">
+                  {item.sub}
+                </span>
+              </span>
             </motion.button>
           );
         })}

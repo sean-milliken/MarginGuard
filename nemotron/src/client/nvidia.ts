@@ -8,6 +8,8 @@ export interface NvidiaClientConfig {
   model?: string;
   timeoutMs?: number;
   maxAttempts?: number;
+  /** Shared budget for initial analysis and schema correction. */
+  totalTimeoutMs?: number;
 }
 
 export type ApiCallResult =
@@ -50,27 +52,46 @@ export async function callNvidiaApi(
   modelId: string,
   messages: CompletionMessage[],
   maxAttempts = 3,
+  deadlineMs?: number,
 ): Promise<ApiCallResult> {
   let lastError: ApiCallResult | null = null;
+  const expired = (): ApiCallResult => ({
+    success: false,
+    error: "AI analysis timed out. Please retry.",
+  });
 
   for (
     let attempt = 0;
     attempt < Math.max(1, Math.min(maxAttempts, 3));
     attempt++
   ) {
+    if (deadlineMs !== undefined && Date.now() >= deadlineMs) return expired();
     if (attempt > 0) {
+      if (
+        deadlineMs !== undefined &&
+        Date.now() + RETRY_DELAYS_MS[attempt - 1]! >= deadlineMs
+      )
+        return expired();
       await new Promise((resolve) =>
         setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]),
       );
     }
 
     try {
-      const response = await client.chat.completions.create({
-        model: modelId,
-        messages,
-        temperature: 0.1,
-        max_tokens: 4096,
-      });
+      const remaining =
+        deadlineMs === undefined ? undefined : deadlineMs - Date.now();
+      if (remaining !== undefined && remaining <= 0) return expired();
+      const response = await client.chat.completions.create(
+        {
+          model: modelId,
+          messages,
+          temperature: 0.1,
+          max_tokens: 4096,
+        },
+        remaining === undefined
+          ? undefined
+          : { timeout: Math.min(client.timeout, remaining) },
+      );
 
       const content = response.choices[0]?.message?.content;
       if (content == null || content.trim() === "") {

@@ -112,7 +112,9 @@ export function analyzeDisruption(company: Company, event: IntelligenceEvent): A
     const shipping = sum([mul(replacement, a.expeditedShippingCentsPerUnit), a.fixedExpeditingCents]);
     const cost = sum([premium, shipping]);
     const avoided = baseline.contributionMarginAtRiskCents - residual.contributionMarginAtRiskCents;
-    responseOptions.push({ id: JSON.stringify([c.id, a.supplierId]), description: `Replace ${replacement} ${c.name} units using ${a.supplierId}`,
+    const altSupplierName = company.suppliers.find(s => s.id === a.supplierId)?.name ?? a.supplierId;
+    const recoveredCases = baseline.affectedUnits - residual.affectedUnits;
+    responseOptions.push({ id: JSON.stringify([c.id, a.supplierId]), description: `Source ${c.name}s from ${altSupplierName} — recover ${recoveredCases.toLocaleString()} cases`,
       componentId: c.id, supplierId: a.supplierId, replacementComponentUnits: replacement,
       premiumCents: premium, expeditedShippingCents: shipping, incrementalCostCents: cost,
       recoveredUnits: baseline.affectedUnits - residual.affectedUnits,

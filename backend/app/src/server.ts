@@ -4,12 +4,21 @@ import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { createApi } from "./api";
+import { createFredClient } from "./fred/client";
+import { createFredService } from "./fred/service";
+import { memoryCache } from "./fred/cache";
 import { createNewsService } from "./news/service";
 config({
   path: resolve(fileURLToPath(new URL("../../../.env", import.meta.url))),
 });
 config();
-const api = createApi({ newsService: createNewsService() });
+const fredClient = await createFredClient();
+const api = createApi({
+  newsService: createNewsService(),
+  fredService: fredClient
+    ? createFredService(fredClient, memoryCache())
+    : undefined,
+});
 const staticRoot = resolve(
   fileURLToPath(new URL("../../../frontend/dist", import.meta.url)),
 );
