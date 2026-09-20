@@ -33,6 +33,13 @@ test("the SDK transport timeout is bounded by the remaining budget", async () =>
   ).toBe(true);
   expect(create.mock.calls[0][1]).toEqual({ timeout: 50 });
 });
+test("a caller can cap generated qualitative JSON without changing the model input", async () => {
+  const create = jest
+    .fn()
+    .mockResolvedValue({ choices: [{ message: { content: "ok" } }] });
+  await nvidia.callNvidiaApi(fakeClient(create), "model", [], 1, undefined, 1200);
+  expect(create.mock.calls[0][0].max_tokens).toBe(1200);
+});
 test("schema correction shares the original deadline instead of getting a new budget", async () => {
   let now = 0;
   jest.spyOn(Date, "now").mockImplementation(() => now);

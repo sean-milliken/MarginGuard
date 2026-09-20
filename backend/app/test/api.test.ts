@@ -4,6 +4,25 @@ import { createApi } from "../src/api";
 import { createSnapshot } from "../src/service";
 import type { AnalysisOutcome } from "../../../nemotron/src/analyze";
 const payload = (value: unknown) => JSON.stringify(value);
+test("irrelevant event uses the same analysis and persistence pipeline without false exposure", async () => {
+  const api = createApi();
+  const response = await api({
+    method: "POST",
+    path: "/api/analyses",
+    body: payload({ scenarioId: "irrelevant-leadership" }),
+  });
+  assert.equal(response.statusCode, 201);
+  const record = JSON.parse(response.body);
+  assert.equal(record.snapshot.event.type, "irrelevant");
+  assert.equal(record.snapshot.report.contributionMarginAtRiskCents, 0);
+  assert.equal(record.snapshot.report.responseOptions.length, 1);
+  assert.deepEqual(record.snapshot.report.affectedSuppliers, []);
+  assert.equal(
+    (await api({ method: "GET", path: `/api/analyses/${record.analysisId}` }))
+      .statusCode,
+    200,
+  );
+});
 test("dashboard and scenario routes use the real financial engine", async () => {
   const api = createApi();
   const initial = await api({ method: "GET", path: "/api/dashboard" });
@@ -115,6 +134,55 @@ test("Nemotron adapter receives qualitative options; its output cannot modify fi
   });
   assert.equal(result.statusCode, 200);
   assert.deepEqual(createSnapshot().report, before);
+});
+test("irrelevant source can use the real intelligence adapter without generating financial values", async () => {
+  const snapshot = createSnapshot({ scenarioId: "irrelevant-leadership" });
+  const api = createApi({
+    intelligenceAvailable: true,
+    analyzer: async (input) => {
+      assert.equal(input.articleText, snapshot.source.text);
+      assert.deepEqual(
+        input.responseOptions?.map((option) => option.id),
+        ["do-nothing"],
+      );
+      return {
+        ...outcome,
+        result: {
+          ...outcome.result,
+          evidence: [snapshot.source.text],
+          eventClassification: {
+            category: "IRRELEVANT",
+            confidence: 0.8,
+            rationale: "Leadership appointment has no supply-chain change.",
+          },
+          businessRelevance: {
+            isRelevant: false,
+            relevanceScore: 0,
+            affectedSupplyChainSegments: [],
+            reasoning: "No dependency matched.",
+          },
+        },
+      };
+    },
+  });
+  const response = await api({
+    method: "POST",
+    path: "/intelligence",
+    body: payload({
+      articleText: snapshot.source.text,
+      analysis: { scenarioId: "irrelevant-leadership" },
+    }),
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(
+    JSON.parse(response.body).result.businessRelevance.isRelevant,
+    false,
+  );
+  assert.equal(
+    createSnapshot({ scenarioId: "irrelevant-leadership" }).report
+      .contributionMarginAtRiskCents,
+    0,
+  );
 });
 test("hallucinated evidence and invalid option rankings are rejected", async () => {
   for (const patch of [

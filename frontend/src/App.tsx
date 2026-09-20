@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
 import { SetupProvider, useSetup } from "./contexts/SetupContext";
-import ThreeBackground from "./components/3d/ThreeBackground";
 import DashboardPage from "./pages/DashboardPage";
 import WorkspacePage from "./pages/WorkspacePage";
 import SetupPage from "./pages/SetupPage";
@@ -41,7 +40,6 @@ export default function App() {
     <AuthProvider>
       <SetupProvider>
         <DataProvider>
-          <ThreeBackground intensity="low" interactive />
           <div className="relative z-10">
             <Routes>
               <Route
@@ -63,6 +61,7 @@ export default function App() {
                 }
               />
               {[
+                "scenarios",
                 "intelligence",
                 "analysis",
                 "responses",

@@ -7,7 +7,6 @@ export {
   getResponsesByScenario,
   getRecommendedResponse
 } from './responses';
-export { evaluationMetrics, getPerformanceSummary } from './evals';
 export {
   allScenarios,
   portDisruptionScenario,

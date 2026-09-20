@@ -34,7 +34,7 @@ export interface Company {
 }
 export interface IntelligenceEvent {
   id: string;
-  type: 'logistics-disruption';
+  type: 'logistics-disruption' | 'irrelevant';
   supplierIds: string[];
   disruptionDays: number;
   unavailableBps: number;

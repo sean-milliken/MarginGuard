@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { analyzeArticle } from '../analyze';
@@ -7,6 +8,7 @@ import { calculateMetrics } from './metrics';
 import type { EvalResultItem, EvalResults } from '../schemas/eval';
 
 const OUTPUT_PATH = path.join(process.cwd(), 'eval-results.json');
+config({ path: path.resolve(__dirname, '../../../.env') });
 const INTER_REQUEST_DELAY_MS = 500;
 
 function sleep(ms: number): Promise<void> {
@@ -39,6 +41,8 @@ async function main(): Promise<void> {
       firstAttemptSchemaValid: outcome.firstAttemptSchemaValid,
       retried: outcome.retried,
       latencyMs,
+      expected: item.groundTruth,
+      sourceExcerpt: item.articleText.slice(0, 600),
       ...(outcome.success
         ? {
             predicted: outcome.result,

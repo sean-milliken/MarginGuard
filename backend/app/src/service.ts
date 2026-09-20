@@ -19,7 +19,7 @@ const id = z.string().trim().min(1).max(120);
 export const eventSchema = z
   .object({
     id,
-    type: z.literal("logistics-disruption"),
+    type: z.enum(["logistics-disruption", "irrelevant"]),
     supplierIds: z.array(id).max(100),
     disruptionDays: integer.max(31),
     unavailableBps: integer.max(10000),
@@ -102,6 +102,19 @@ export const analysisRequestSchema = z
   .strict();
 export const scenarios: ScenarioDefinition[] = [
   {
+    id: "irrelevant-leadership",
+    name: "No exposure · competitor appoints CEO",
+    event: {
+      id: "competitor-ceo",
+      type: "irrelevant",
+      supplierIds: [],
+      disruptionDays: 0,
+      unavailableBps: 0,
+      description:
+        "Synthetic business brief: North Coast Soft Drinks appoints a new CEO. The announcement describes a leadership transition; it reports no supply, transport, or commodity change.",
+    },
+  },
+  {
     id: "logistics-15-days",
     name: "Freight closure · 15 days",
     event: logisticsDisruption,
@@ -134,7 +147,7 @@ export class InvalidInputError extends Error {}
 export function createSnapshot(raw: unknown = {}): ApplicationSnapshot {
   const input = analysisRequestSchema.parse(raw);
   const scenario = scenarios.find(
-    (s) => s.id === (input.scenarioId ?? scenarios[0]!.id),
+    (s) => s.id === (input.scenarioId ?? "logistics-15-days"),
   );
   if (!scenario) throw new InvalidInputError("Unknown scenario");
   const company = input.company ?? steelCityBeverages;
@@ -156,7 +169,10 @@ export function createSnapshot(raw: unknown = {}): ApplicationSnapshot {
     source: {
       title: "Synthetic manufacturing disruption brief",
       synthetic: true,
-      text: `${event.description}\nConfirmed modeling inputs: ${event.disruptionDays} disrupted days in a ${company.daysInMonth}-day month; ${event.unavailableBps / 100}% of deliveries unavailable for ${event.supplierIds.map((id) => company.suppliers.find((s) => s.id === id)?.name ?? id).join(", ")}.`,
+      text:
+        event.type === "irrelevant"
+          ? event.description
+          : `${event.description}\nConfirmed modeling inputs: ${event.disruptionDays} disrupted days in a ${company.daysInMonth}-day month; ${event.unavailableBps / 100}% of deliveries unavailable for ${event.supplierIds.map((id) => company.suppliers.find((s) => s.id === id)?.name ?? id).join(", ")}.`,
     },
     intelligenceAvailable: Boolean(process.env.NVIDIA_API_KEY),
   };
@@ -174,7 +190,12 @@ export async function classifyArticle(
     analyzeArticle(input, {
       timeoutMs: 25000,
       totalTimeoutMs: 25000,
-      maxAttempts: 1,
+      // One bounded retry handles NVIDIA's documented transient 503/529/429
+      // responses without letting a correction attempt exceed this request window.
+      maxAttempts: 2,
+      // The UI only needs compact structured evidence, not a long narrative.
+      // A lower response cap makes the existing 25s API gateway budget practical.
+      maxTokens: 1200,
     }),
 ): Promise<AnalysisOutcome> {
   const input = intelligenceRequestSchema.parse(raw);

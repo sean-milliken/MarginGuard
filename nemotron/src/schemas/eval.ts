@@ -36,6 +36,10 @@ export const PerCategoryStatsSchema = z.object({
 export const EvalMetricsSchema = z.object({
   classificationAccuracy: z.number().min(0).max(1),
   relevanceAccuracy: z.number().min(0).max(1),
+  relevancePrecision: z.number().min(0).max(1).optional(),
+  relevanceRecall: z.number().min(0).max(1).optional(),
+  relevanceF1: z.number().min(0).max(1).optional(),
+  relevanceExamples: z.number().int().nonnegative().optional(),
   entityPrecision: z.number().min(0).max(1),
   entityRecall: z.number().min(0).max(1),
   entityF1: z.number().min(0).max(1),
@@ -57,6 +61,8 @@ export const EvalResultItemSchema = z.object({
   error: z.string().optional(),
   validationErrors: z.array(z.string()).optional(),
   latencyMs: z.number().nonnegative(),
+  expected: GroundTruthSchema.optional(),
+  sourceExcerpt: z.string().optional(),
 });
 
 export const EvalResultsSchema = z.object({

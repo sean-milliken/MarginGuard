@@ -1,9 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 const dashboard = (page: Page) =>
-  page.getByRole("heading", { name: "Supply Chain Risk Monitor" });
+  page.getByRole("heading", { name: "Dashboard" });
 async function enterDemo(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await page.getByRole("button", { name: /Open Dashboard/ }).click();
   await expect(dashboard(page)).toBeVisible();
 }
 test.beforeEach(async ({ page }) => {
@@ -22,7 +22,7 @@ test("setup → model → recovery uses server calculations and retains the do-n
   page.on("pageerror", (e) => errors.push(e.message));
   await enterDemo(page);
   await expect(page.getByText("$276,000", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /Model Impact/ }).click();
+  await page.getByRole("link", { name: "Scenarios", exact: true }).click();
   await page.getByLabel("Disruption days").fill("0");
   const response = page.waitForResponse(
     (r) => r.url().endsWith("/api/analyses") && r.request().method() === "POST",
@@ -30,19 +30,17 @@ test("setup → model → recovery uses server calculations and retains the do-n
   await page.getByRole("button", { name: "Calculate impact" }).click();
   expect((await (await response).json()).snapshot.report.affectedUnits).toBe(0);
   await expect(
-    page.getByText("No products affected", { exact: true }),
+    page.getByText("No affected products", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "See your recovery options" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Accept the disruption" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: /Dashboard/ }).click();
-  await page.getByLabel("Scenario").selectOption("logistics-15-days");
-  await expect(page.getByText("$276,000", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Compare response options" }).click();
-  await expect(
-    page.getByText("+\u0024187,500.00 net financial benefit", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByTestId("recommended-action")).toHaveText(
+    "Take no action",
+  );
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await page.getByRole("button", { name: "Run Judge Demo" }).click();
+  await expect(page.getByTestId("margin-exposure")).toHaveText("$276,000.00");
+  await expect(page.getByTestId("net-benefit")).toHaveText(
+    "$187,500.00 net benefit",
+  );
   expect(errors).toEqual([]);
 });
 test("navigation and reload retain setup and reach each revised page", async ({
@@ -50,10 +48,10 @@ test("navigation and reload retain setup and reach each revised page", async ({
 }) => {
   await enterDemo(page);
   for (const [path, title] of [
-    ["intelligence", "News Analysis"],
+    ["intelligence", "Intelligence"],
     ["sources", "Sources"],
     ["company", "Company Data"],
-    ["evals", "AI Accuracy"],
+    ["evals", "Evals"],
   ]) {
     await page.goto(`/${path}`);
     await expect(
@@ -76,9 +74,11 @@ test("setup remains available offline and the dashboard exposes a retry", async 
   );
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+    page.getByRole("heading", {
+      name: "Know what will hit your bottom line before it does.",
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await page.getByRole("button", { name: /Open Dashboard/ }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Backend temporarily unavailable",
   );
@@ -111,15 +111,18 @@ test("company labels persist, remain explicitly synthetic, and can be reset", as
   ).toBeVisible();
   await page.reload();
   await expect(dashboard(page)).toBeVisible();
-  await page.getByRole("button", { name: /Company Data/ }).click();
+  await page.getByText("Company & sources", { exact: true }).click();
+  await page.getByRole("link", { name: "Company Data" }).click();
   await expect(
     page.getByRole("heading", { name: "Acme Manufacturing — Products" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Switch", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+    page.getByRole("heading", {
+      name: "Know what will hit your bottom line before it does.",
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Try the demo/ }).click();
+  await page.getByRole("button", { name: /Open Dashboard/ }).click();
   await expect(
     page.getByText("Steel City Beverages · synthetic manufacturing model"),
   ).toBeVisible();
@@ -132,7 +135,9 @@ test("malformed saved setup returns to onboarding instead of crashing", async ({
   );
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Welcome. Let's get you set up." }),
+    page.getByRole("heading", {
+      name: "Know what will hit your bottom line before it does.",
+    }),
   ).toBeVisible();
 });
 test("news selection and sources preserve live headlines and show fetch failures", async ({
@@ -150,10 +155,11 @@ test("news selection and sources preserve live headlines and show fetch failures
     route.fulfill({ json: [article] }),
   );
   await enterDemo(page);
-  await page.getByRole("button", { name: /News Analysis/ }).click();
+  await page.getByRole("link", { name: "Intelligence", exact: true }).click();
   await page.getByRole("button", { name: "Use headline" }).click();
   await expect(page.getByLabel("Source text")).toHaveValue(article.title);
-  await page.getByRole("button", { name: /Sources/ }).click();
+  await page.getByText("Company & sources", { exact: true }).click();
+  await page.getByRole("link", { name: "Sources", exact: true }).click();
   await expect(page.getByRole("link", { name: article.title })).toHaveAttribute(
     "href",
     article.url,
@@ -197,6 +203,7 @@ test("economic price decreases show savings and failed impact loads can retry", 
     }),
   );
   await enterDemo(page);
+  await page.getByText("Economic indicators", { exact: true }).click();
   await page
     .getByRole("button", { name: "View financial impact", exact: true })
     .click();
